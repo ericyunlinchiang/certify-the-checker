@@ -79,6 +79,15 @@ went, and whether the test was shown able to fail. `STANDARD-v0.md` defines a sh
 Yes. An AI reviewer is just another checker: give it the same code, record its verdict per example and per run, and compare
 with running the code. Please share results with the "Checker result" issue template.
 
+## Related work
+
+- **NIST SARD / Juliet test suite** (https://samate.nist.gov/SARD/): a large labelled corpus of synthetic C/C++ and Java
+  test cases for scoring analyzers at scale. This repo is the opposite end: a few tiny cases you can read in a minute, plus
+  a format for stating what a CLEAN result covers. The two are complementary.
+- **Static analyzer benchmark suites and comparison harnesses** run many tools over many cases and report scores. This repo
+  does not rank tools; it shows, case by case, why a CLEAN verdict needs its build settings, input kinds and coverage
+  depth stated next to it.
+
 ## Quick start (about 1 minute)
 
 With Docker (any OS):

@@ -107,84 +107,93 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
   79  Yes. An AI reviewer is just another checker: give it the same code, record its verdict per example and per run, and compare
   80  with running the code. Please share results with the "Checker result" issue template.
   81  
-  82  ## Quick start (about 1 minute)
+  82  ## Related work
   83  
-  84  With Docker (any OS):
-  85  
-  86  ```
-  87  git clone https://github.com/ericyunlinchiang/certify-the-checker.git
-  88  cd certify-the-checker
-  89  docker build -t certify-the-checker . && docker run --rm certify-the-checker
-  90  ```
-  91  
-  92  Without Docker: Linux with GNU **gcc 13+**, **clang**, **python3**; **cppcheck** optional.
-  93  Ubuntu 24.04: `sudo apt-get install gcc clang cppcheck python3`. Ubuntu 22.04 ships an older gcc: use Docker. On macOS the
-  94  `gcc` command is clang: use Docker.
-  95  
-  96  ```
-  97  tools/run_all.sh                                   # the table above
-  98  tools/run_example.sh examples/02-off-by-one        # one example in detail: lines, coverage, readout.json
+  84  - **NIST SARD / Juliet test suite** (https://samate.nist.gov/SARD/): a large labelled corpus of synthetic C/C++ and Java
+  85    test cases for scoring analyzers at scale. This repo is the opposite end: a few tiny cases you can read in a minute, plus
+  86    a format for stating what a CLEAN result covers. The two are complementary.
+  87  - **Static analyzer benchmark suites and comparison harnesses** run many tools over many cases and report scores. This repo
+  88    does not rank tools; it shows, case by case, why a CLEAN verdict needs its build settings, input kinds and coverage
+  89    depth stated next to it.
+  90  
+  91  ## Quick start (about 1 minute)
+  92  
+  93  With Docker (any OS):
+  94  
+  95  ```
+  96  git clone https://github.com/ericyunlinchiang/certify-the-checker.git
+  97  cd certify-the-checker
+  98  docker build -t certify-the-checker . && docker run --rm certify-the-checker
   99  ```
  100  
- 101  `tools/run_all.sh --check` compares your table with `examples/expected-results.txt`. A match means **you reproduced the
- 102  same results**. It does not mean a checker is good. Other tool versions can give different results.
- 103  
- 104  ## How results are decided
- 105  
- 106  - Each example lists its **bug lines** in `example.env`: the root cause and the line where it goes wrong (for example
- 107    01: line 17 computes the size in 16 bits, line 21 writes past the buffer).
- 108  - A checker **finds the bug** if it reports any bug line. Other lines it reports are printed as notes.
- 109  - Running the code: **BUG** if AddressSanitizer/UBSan reports an error in the example; **CLEAN** if it runs normally;
- 110    **NOTRIGGER** if no bug line ran at all.
- 111  - **Coverage depth** is measured with gcov for each kind of input: `none` (no bug line ran) < `partial` (some ran, often
- 112    not the root cause) < `line` (all ran) < `branch` (and every branch in the function went both ways) < `input-class`
- 113    (the input actually triggered the bug).
- 114  - **Controlled** means at least one input makes the run report BUG. A run is only shown able to fail if that happens.
- 115  
- 116  Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
- 117  
- 118  ## Use it on your own code (4 steps)
- 119  
- 120  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
- 121  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
- 122     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
- 123  3. **Show your test can fail**: use an input or a planted bug that must be reported.
- 124  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
- 125  
- 126  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
- 127  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
+ 101  Without Docker: Linux with GNU **gcc 13+**, **clang**, **python3**; **cppcheck** optional.
+ 102  Ubuntu 24.04: `sudo apt-get install gcc clang cppcheck python3`. Ubuntu 22.04 ships an older gcc: use Docker. On macOS the
+ 103  `gcc` command is clang: use Docker.
+ 104  
+ 105  ```
+ 106  tools/run_all.sh                                   # the table above
+ 107  tools/run_example.sh examples/02-off-by-one        # one example in detail: lines, coverage, readout.json
+ 108  ```
+ 109  
+ 110  `tools/run_all.sh --check` compares your table with `examples/expected-results.txt`. A match means **you reproduced the
+ 111  same results**. It does not mean a checker is good. Other tool versions can give different results.
+ 112  
+ 113  ## How results are decided
+ 114  
+ 115  - Each example lists its **bug lines** in `example.env`: the root cause and the line where it goes wrong (for example
+ 116    01: line 17 computes the size in 16 bits, line 21 writes past the buffer).
+ 117  - A checker **finds the bug** if it reports any bug line. Other lines it reports are printed as notes.
+ 118  - Running the code: **BUG** if AddressSanitizer/UBSan reports an error in the example; **CLEAN** if it runs normally;
+ 119    **NOTRIGGER** if no bug line ran at all.
+ 120  - **Coverage depth** is measured with gcov for each kind of input: `none` (no bug line ran) < `partial` (some ran, often
+ 121    not the root cause) < `line` (all ran) < `branch` (and every branch in the function went both ways) < `input-class`
+ 122    (the input actually triggered the bug).
+ 123  - **Controlled** means at least one input makes the run report BUG. A run is only shown able to fail if that happens.
+ 124  
+ 125  Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
+ 126  
+ 127  ## Use it on your own code (4 steps)
  128  
- 129  ## Words used
- 130  
- 131  | Word | Meaning |
- 132  |---|---|
- 133  | CLEAN / BUG | "no issue found" / "issue found" |
- 134  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
- 135  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
- 136  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
- 137  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
- 138  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
- 139  | coverage depth | how thoroughly the risky code was exercised (see above) |
- 140  | controlled | the test was shown able to fail |
- 141  
- 142  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
- 143  
- 144  ## Files
- 145  
- 146  - `STANDARD-v0.md`: the standard
- 147  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
- 148  - `examples/expected-results.txt`: the table above, machine-readable
- 149  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
- 150  - `schema/readout.schema.json`, `readout-template.json`
- 151  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
- 152  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
- 153  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
- 154  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
- 155  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
- 156  
- 157  ## License
- 158  
- 159  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
+ 129  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
+ 130  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
+ 131     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
+ 132  3. **Show your test can fail**: use an input or a planted bug that must be reported.
+ 133  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
+ 134  
+ 135  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
+ 136  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
+ 137  
+ 138  ## Words used
+ 139  
+ 140  | Word | Meaning |
+ 141  |---|---|
+ 142  | CLEAN / BUG | "no issue found" / "issue found" |
+ 143  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
+ 144  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
+ 145  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
+ 146  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
+ 147  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
+ 148  | coverage depth | how thoroughly the risky code was exercised (see above) |
+ 149  | controlled | the test was shown able to fail |
+ 150  
+ 151  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
+ 152  
+ 153  ## Files
+ 154  
+ 155  - `STANDARD-v0.md`: the standard
+ 156  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
+ 157  - `examples/expected-results.txt`: the table above, machine-readable
+ 158  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
+ 159  - `schema/readout.schema.json`, `readout-template.json`
+ 160  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
+ 161  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
+ 162  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
+ 163  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
+ 164  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+ 165  
+ 166  ## License
+ 167  
+ 168  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
 ```
 
 ## FILE: CHANGELOG.md
@@ -192,27 +201,31 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  # Changelog
    2  
-   3  ## v0.3.1 (2026-11-24)
-   4  - README: FAQ answering common questions with the measured results.
-   5  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
+   3  ## v0.3.2 (2026-11-24)
+   4  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
+   5  - First release archived on Zenodo (citable with a DOI).
    6  
-   7  ## v0.3 (2026-11-24)
-   8  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
-   9  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
-  10  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
-  11  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
-  12  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
-  13  - The standard opens with a plain-language version; README says what the repo does and does not show.
-  14  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
-  15  
-  16  ## v0.2 (2026-11-24)
-  17  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
-  18  
-  19  ## v0.1 (2026-11-24)
-  20  - Plain-language README, runnable example folder, readout template.
-  21  
-  22  ## v0 (2026-11-24)
-  23  - First release: the standard and one example.
+   7  ## v0.3.1 (2026-11-24)
+   8  - README: FAQ answering common questions with the measured results.
+   9  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
+  10  
+  11  ## v0.3 (2026-11-24)
+  12  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
+  13  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
+  14  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
+  15  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
+  16  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
+  17  - The standard opens with a plain-language version; README says what the repo does and does not show.
+  18  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
+  19  
+  20  ## v0.2 (2026-11-24)
+  21  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
+  22  
+  23  ## v0.1 (2026-11-24)
+  24  - Plain-language README, runnable example folder, readout template.
+  25  
+  26  ## v0 (2026-11-24)
+  27  - First release: the standard and one example.
 ```
 
 ## FILE: STANDARD-v0.md

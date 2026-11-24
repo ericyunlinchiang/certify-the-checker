@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.2 (2026-11-24)
+- README: related work (how this relates to large benchmark suites such as NIST Juliet).
+- First release archived on Zenodo (citable with a DOI).
+
 ## v0.3.1 (2026-11-24)
 - README: FAQ answering common questions with the measured results.
 - Project web page in `docs/` (GitHub Pages), CHANGELOG.
