@@ -43,6 +43,42 @@ What the table says:
 
 **Tried another checker or an AI reviewer?** Please share the result with the "Checker result" issue template.
 
+## FAQ
+
+### Does "no issues found" from a static analyzer mean my code is safe?
+No. It means the checker found nothing with its rules, flags and version. In this repo, examples 02 and 03 pass clang
+--analyze, gcc -fanalyzer and cppcheck with no findings, yet both crash on one kind of input.
+
+### Does the clang static analyzer catch off-by-one errors?
+Not in example 02 (clang 18.1.3, `--analyze`): a loop written with `<=` instead of `<` writes one element past a 16-byte
+stack buffer, and clang reports nothing. gcc -fanalyzer and cppcheck also report nothing. AddressSanitizer catches it on
+the boundary input.
+
+### Does gcc -fanalyzer catch a buffer overflow caused by integer truncation?
+Yes in example 01 (gcc 13.3.0): it flags the heap overflow when a buffer size is computed in 16 bits. clang --analyze and
+cppcheck do not.
+
+### Does cppcheck find use-after-free?
+Yes in example 04 (cppcheck 2.13.0). It also reports a double free on line 12 that never happens when the code runs, so a
+finding needs checking too.
+
+### Is running the code with AddressSanitizer enough?
+No. It only sees what your inputs reach. In example 05 the tests use normal input only: the line that causes the bug runs
+0 times, AddressSanitizer reports nothing, while gcc -fanalyzer and cppcheck find the bug.
+
+### What is the difference between line coverage and testing the risky case?
+A line can run many times without the dangerous condition ever happening. In example 02, the buggy line runs 9 times on
+normal input; the bug only appears when the count equals the buffer size. This repo measures both with gcov.
+
+### How should I report a static analysis or code review result?
+Report the CLEAN or BUG verdict together with the build settings, the kinds of input that were tried, how deep the testing
+went, and whether the test was shown able to fail. `STANDARD-v0.md` defines a short format for this, and
+`readout-template.json` is a fill-in version.
+
+### Can I use this for AI code reviewers?
+Yes. An AI reviewer is just another checker: give it the same code, record its verdict per example and per run, and compare
+with running the code. Please share results with the "Checker result" issue template.
+
 ## Quick start (about 1 minute)
 
 With Docker (any OS):
@@ -113,6 +149,7 @@ of input and decide which lines matter; to add an example to this repo, see `CON
 - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
 - `schema/readout.schema.json`, `readout-template.json`
 - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
+- `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
 - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
 - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
 - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ericyunlinchiang.github.io/certify-the-checker/sitemap.xml
