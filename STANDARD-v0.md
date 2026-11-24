@@ -1,5 +1,35 @@
 # Certify-the-Checker — a Standard for Scoped Certification of a Checker's CLEAN Verdict (v0)
 
+## Plain-language version (read this first)
+
+When a code checker says "no issues found" (CLEAN), that is a statement about what was checked, not about the code. This
+standard asks you to report a CLEAN result together with its scope:
+
+1. **What it was run on**: build settings and the kinds of input that were tried.
+2. **How deep the testing went**: did the risky line run at all; did every branch run; did the risky condition actually
+   happen; was every kind of input tried.
+3. **Whether the test could have failed**: show it on a known bug first ("known-bug sanity check").
+
+Then compare the checker with actually running the code (for example under AddressSanitizer), one kind of input at a time,
+and report the whole table. Words used below, in plain terms:
+
+| Term in this document | Plain meaning |
+|---|---|
+| S, the checker | the static analyzer, linter or AI reviewer being evaluated |
+| X, execution oracle | running the code and watching for errors (sanitizers, tests) |
+| F, formal oracle | an optional proof or model-checking tool |
+| tau | the score cut-off a checker uses to say CLEAN or BUG |
+| certify-clean | checker says CLEAN, and running the code under the stated settings and inputs also found nothing |
+| non-transferability | a CLEAN that holds for some settings or inputs but fails for others |
+| white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
+| corner | a known real bug (for example from a public advisory) that nothing in your setup observes |
+| coverage gap | the risky code never ran, so running the code says nothing about it |
+| positive control, CONTROLLED | a known-bug sanity check: the test was shown able to fail |
+| axiom accounting | list every assumption your result depends on |
+| cube-grade | a result produced under the full independence rules in section 7; anything else is advisory |
+
+The rest of this document is the precise version.
+
 ## Abstract
 Static analyzers and LLM-generated checkers emit CLEAN (no-finding) verdicts. A CLEAN verdict is easy to over-trust. This
 standard defines how to CERTIFY and, crucially, BOUND such a verdict by composing the checker with independent oracles and
@@ -40,7 +70,8 @@ a crafted input that must flip CLEAN to BUG). UNCONTROLLED otherwise. An uncontr
 support certify-clean. Report the grade per property.
 
 ## 5. Coverage depth
-"Covered" is stratified, weakest to strongest: LINE < BRANCH < CONDITION < INPUT-CLASS. A certify-clean states the level it
+"Covered" is stratified, weakest to strongest: LINE < BRANCH < CONDITION < INPUT-CLASS. Below LINE, a run may reach
+NONE or only PART of the relevant lines (for example the faulting line but not the root cause). A certify-clean states the level it
 reached. Line coverage (the defect line executed) is the floor and does not imply the defect's triggering condition or input
 class was ever exercised. This stratification is the precise account of why a clean verdict fails to transfer.
 
@@ -75,7 +106,8 @@ while another (gcc's -fanalyzer) flags the write line as a heap buffer overflow.
 out-of-bounds write under an adversarial input class, while the benign input class is clean. So the silent analyzer's CLEAN
 is scoped to the benign input class and does not transfer; and the two real checkers' disagreement is itself a cell on the
 map. (The author's own illustrative code; tool versions are pinned in the repository README; run it with
-tools/run_example.sh examples/01-integer-truncation. Further examples are in examples/.)
+tools/run_example.sh examples/01-integer-truncation. Further examples, including one where the checker finds a bug that the
+tests never reach, are in examples/.)
 
 ## 9. What this standard is not
 It does not certify safety. It does not rank tools. It does not claim a portable guarantee for any function. It reports where

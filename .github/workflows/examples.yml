@@ -11,10 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y gcc clang cppcheck
+        run: sudo apt-get update && sudo apt-get install -y gcc clang cppcheck python3
       - name: Tool versions
-        run: gcc --version | head -1; clang --version | head -1; cppcheck --version
+        run: gcc --version | head -1; clang --version | head -1; cppcheck --version; gcov --version | head -1
       - name: Check file hashes
         run: sha256sum -c SHA256SUMS
+      - name: Check that DIGEST.md is up to date
+        run: tools/make_digest.sh > /tmp/DIGEST.md && diff -u DIGEST.md /tmp/DIGEST.md
       - name: Run all examples and compare with expected results
-        run: tools/run_all.sh --check
+        run: CTC_OUT=results tools/run_all.sh --check
+      - name: Validate every readout against the schema
+        run: tools/validate_readout.py results/*/readout.json readout-template.json
+      - name: Publish raw outputs (checker output, sanitizer output, coverage, readouts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-outputs
+          path: results/
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run the Docker image
+        run: docker build -t certify-the-checker . && docker run --rm certify-the-checker

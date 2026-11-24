@@ -5,5 +5,5 @@
   only for the configuration and inputs it was obtained under; coverage has depth (line / branch / condition / input class).
 - Examples: targets, harnesses and scripts are the author's own code, written for this repository. The checkers are three
   public static analyzers run unmodified (clang's static analyzer, gcc -fanalyzer, cppcheck); execution uses
-  AddressSanitizer and UBSan. Tool versions are listed in the README.
+  AddressSanitizer and UBSan; coverage is measured with gcov. Tool versions are listed in the README.
 - These files were prepared and reproduced in a personal environment, using only public tools.

@@ -1,0 +1,15 @@
+# Certify-the-Checker
+
+> A "no issues found" (CLEAN) result from a code checker is only true for what was actually checked: the build settings and
+> the kinds of input that were run. Six small C examples compare three free checkers (clang --analyze, gcc -fanalyzer,
+> cppcheck) with running the code under AddressSanitizer/UBSan, and measure test coverage depth with gcov. A short standard
+> describes how to report a CLEAN result with its scope.
+
+Scope: six hand-written teaching examples, not a survey of real projects; results depend on tool versions (Ubuntu 24.04,
+gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). Not a vulnerability report.
+
+- [README.md](README.md): results table, how results are decided, quick start
+- [STANDARD-v0.md](STANDARD-v0.md): the reporting standard (plain-language version first)
+- [examples/expected-results.txt](examples/expected-results.txt): results in machine-readable form
+- [schema/readout.schema.json](schema/readout.schema.json): format of each readout
+- [DIGEST.md](DIGEST.md): every text file of this repo in one document

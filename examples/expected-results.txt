@@ -2,3 +2,5 @@
 02-off-by-one clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN boundary=BUG
 03-signed-length clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN negative=BUG
 04-use-after-free clang=BUG gcc=BUG cppcheck=BUG exec: normal=CLEAN error=CLEAN error-read=BUG
+05-untested-error-path clang=CLEAN gcc=BUG cppcheck=BUG exec: normal=CLEAN
+06-divide-by-zero clang=BUG gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN empty=BUG

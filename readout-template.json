@@ -1,19 +1,20 @@
 {
   "standard": "certify-the-checker v0",
   "claim_id": "YOUR-ID-001",
-  "location": "path/to/file.c:LINE",
-  "build_config": "how you built it: compiler + version, important flags/options",
-  "checkers": { "your-checker-name": "CLEAN or BUG" },
+  "location": "path/to/file.c lines 17 21",
+  "bug_lines_why": "which line is the root cause, which line is where it goes wrong",
+  "build_config": "compiler + version, important flags/options",
+  "checkers": { "your-checker-name": "CLEAN" },
   "cells": [
     {
-      "input_class": "a name for one kind of input you ran, e.g. normal",
+      "input_class": "normal",
       "checker": "your-checker-name",
-      "checker_verdict": "CLEAN or BUG",
-      "execution": "CLEAN, BUG, or NOTRIGGER (the line was never reached)",
-      "coverage_depth": "line, branch, condition, or input-class",
-      "result": "certify_clean | clean does NOT transfer | checker missed a real bug | not covered"
+      "checker_verdict": "CLEAN",
+      "execution": "CLEAN",
+      "coverage_depth": "line",
+      "result": "certify_clean"
     }
   ],
-  "control_grade": "controlled (you showed your test CAN fail on a planted bug) or uncontrolled",
-  "note": "anything a reader needs to know to reproduce this"
+  "control_grade": "controlled",
+  "note": "anything a reader needs to reproduce this"
 }
