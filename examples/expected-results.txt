@@ -1,0 +1,4 @@
+01-integer-truncation clang=CLEAN gcc=BUG cppcheck=CLEAN exec: normal=CLEAN large=BUG
+02-off-by-one clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN boundary=BUG
+03-signed-length clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN negative=BUG
+04-use-after-free clang=BUG gcc=BUG cppcheck=BUG exec: normal=CLEAN error=CLEAN error-read=BUG

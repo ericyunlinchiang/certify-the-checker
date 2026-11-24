@@ -1,0 +1,27 @@
+name: Checker result
+description: Ran another checker (Coverity, CodeQL, Semgrep, Infer, PVS, an AI reviewer, ...) on the examples? Share it.
+title: "[result] <checker name> on <example>"
+labels: ["checker-result"]
+body:
+  - type: input
+    id: checker
+    attributes: { label: "Checker and version", placeholder: "e.g. cppcheck 2.16, CodeQL 2.x with the default C/C++ suite" }
+    validations: { required: true }
+  - type: input
+    id: command
+    attributes: { label: "Exact command or settings used" }
+    validations: { required: true }
+  - type: textarea
+    id: results
+    attributes:
+      label: "Result per example"
+      description: "For each example: CLEAN or BUG, and which lines it reported."
+      value: |
+        01-integer-truncation:
+        02-off-by-one:
+        03-signed-length:
+        04-use-after-free:
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes: { label: "Anything else (optional)" }

@@ -1,13 +1,38 @@
 # Certify-the-Checker
 
+[![examples](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml/badge.svg)](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml)
+
 **When a code checker says "no issues found", how far can you trust it?**
 
-This repository has two things:
+This repository has:
 
-1. A short standard (`STANDARD-v0.md`) for writing down what a "no issues" (CLEAN) result really covers.
-2. A small example you can run in under a minute. It shows a real analyzer saying CLEAN on code that crashes on some inputs.
+1. a short standard (`STANDARD-v0.md`) for writing down what a "no issues" (CLEAN) result really covers;
+2. four small bug examples you can run in about a minute, with three real, free checkers and a sanitizer run.
 
-You do not need a security background. If you have used a linter, a static analyzer, or unit tests, you have what you need.
+You do not need a security background. If you have used a linter, a static analyzer or unit tests, you have what you need.
+
+## Can your checker catch these?
+
+Results on Ubuntu 24.04 (gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). "Running the code" = AddressSanitizer + UBSan, one run
+per kind of input.
+
+| example | clang --analyze | gcc -fanalyzer | cppcheck | running the code (per kind of input) |
+|---|---|---|---|---|
+| 01-integer-truncation | CLEAN | BUG | CLEAN | normal=CLEAN large=BUG |
+| 02-off-by-one | CLEAN | CLEAN | CLEAN | normal=CLEAN boundary=BUG |
+| 03-signed-length | CLEAN | CLEAN | CLEAN | normal=CLEAN negative=BUG |
+| 04-use-after-free | BUG | BUG | BUG | normal=CLEAN error=CLEAN error-read=BUG |
+
+What the table says:
+
+- **02 and 03**: all three checkers say CLEAN, yet the code breaks on one kind of input.
+- **01**: the checkers disagree with each other.
+- **04**: all three find the bug. cppcheck also reports a double free on line 12 that never happens when the code runs. A
+  finding needs checking too.
+- In every row, normal input runs fine. A test suite with only normal inputs would pass.
+
+**Tried another checker?** (Coverity, CodeQL, Semgrep, Infer, Clang-Tidy, an AI reviewer...) Please share the result using
+the "Checker result" issue template. See `CONTRIBUTING.md`.
 
 ## The idea in one paragraph
 
@@ -23,48 +48,28 @@ The standard gives names and a format for this, so different tools can be compar
 
 ## Quick start (about 1 minute)
 
-Requirements: Linux, GNU **gcc 13 or newer**, **clang**, bash. Tested on Ubuntu 24.04 with gcc 13.3.0 and clang 18.1.3.
-On Ubuntu: `sudo apt-get install gcc clang`. On macOS the `gcc` command is clang, so use a Linux machine or VM.
+Requirements: Linux, GNU **gcc 13 or newer**, **clang**, bash; **cppcheck** is optional. On Ubuntu:
+`sudo apt-get install gcc clang cppcheck`. On macOS the `gcc` command is clang, so use a Linux machine, VM or container.
 
 ```
 git clone https://github.com/ericyunlinchiang/certify-the-checker.git
 cd certify-the-checker
-./example/repro.sh
+tools/run_all.sh            # prints the table above
+tools/run_example.sh examples/02-off-by-one     # one example in detail, with a JSON readout
 ```
 
-You should see (trimmed):
-
-```
-clang_analyze=CLEAN  (clang 18.1.3)
-gcc_fanalyzer=BUG at target.c:21  (gcc 13.3.0)
-benign      (n=4)      : rc=0 (covered; condition n*4>65535 NOT exercised)
-ERROR: AddressSanitizer: heap-buffer-overflow ... in parse_record ... target.c:21
-VERDICT: NON-TRANSFERABILITY REPRODUCED ...
-```
-
-followed by a JSON readout in the same shape as `readout-template.json`.
-
-## What the example shows
-
-`example/target.c` reads a count and then that many 4-byte items. The output buffer size is computed in a 16-bit number, so a
-large count wraps around and the buffer is too small.
-
-- clang's static analyzer reports nothing (CLEAN).
-- gcc's `-fanalyzer` reports a heap overflow on line 21 (BUG).
-- Running the code under AddressSanitizer: normal input is fine; a large count overflows the buffer on line 21.
-
-So clang's CLEAN was true for normal input only. It did not carry over to large inputs, even though line 21 ran in both cases.
-"The line ran" is not the same as "the risky case was tested".
+`tools/run_all.sh --check` also compares your table with `examples/expected-results.txt`. Different tool versions can give
+different answers, and that is part of the point.
 
 ## Use it on your own checker (4 steps)
 
 1. **Pick a claim.** One place in your code where your checker says CLEAN, or where it reports a finding.
 2. **Run it for real.** Execute that code under a sanitizer or with tests, for each kind of input you care about (normal,
-   empty, very large, malformed...). Note whether the line, the branch, or the risky condition was actually reached.
+   empty, very large, negative, malformed...). Note whether the line, the branch or the risky condition was actually reached.
 3. **Prove your test can fail.** Plant a small bug, or use an input that should fail, and check that your run reports it.
    If it never can, your CLEAN is "uncontrolled".
 4. **Write it down** using `readout-template.json`: one entry per kind of input, with the checker's verdict, the execution
-   result, and the coverage depth. Report the whole table, not one summary number.
+   result and the coverage depth. Report the whole table, not one summary number.
 
 ## Words used in the standard
 
@@ -85,11 +90,12 @@ So clang's CLEAN was true for normal input only. It did not carry over to large 
 ## Files
 
 - `STANDARD-v0.md`: the standard
-- `example/`: the runnable example (`repro.sh`, the target, the test driver, the analyzer wrapper)
+- `examples/`: four examples (`target.c`, `harness.c`, `example.env` each) and `expected-results.txt`
+- `tools/run_example.sh`, `tools/run_all.sh`: run one example or all of them
 - `readout-template.json`: fill this in for your own results
-- `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
+- `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
 - `SHA256SUMS`: check the files with `sha256sum -c SHA256SUMS`
 
 ## License
 
-Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues and questions are welcome.
+Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.

@@ -1,0 +1,16 @@
+name: New example idea
+description: A small bug pattern where a checker's CLEAN result holds for some inputs or settings but not others.
+title: "[example] <short name>"
+labels: ["example-idea"]
+body:
+  - type: textarea
+    id: pattern
+    attributes: { label: "The bug pattern, in a few lines of C", render: c }
+    validations: { required: true }
+  - type: textarea
+    id: inputs
+    attributes: { label: "Which input (or build setting) is fine, and which one triggers the bug?" }
+    validations: { required: true }
+  - type: textarea
+    id: checkers
+    attributes: { label: "Which checkers miss it, if you know (optional)" }

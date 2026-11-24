@@ -74,8 +74,8 @@ analyzers disagree on it: one (a clang static-analyzer run) is silent and return
 while another (gcc's -fanalyzer) flags the write line as a heap buffer overflow. An execution oracle observes a heap
 out-of-bounds write under an adversarial input class, while the benign input class is clean. So the silent analyzer's CLEAN
 is scoped to the benign input class and does not transfer; and the two real checkers' disagreement is itself a cell on the
-map. (The author's own illustrative code; analyzer versions are pinned in example/README.md; run it with
-./example/repro.sh.)
+map. (The author's own illustrative code; tool versions are pinned in the repository README; run it with
+tools/run_example.sh examples/01-integer-truncation. Further examples are in examples/.)
 
 ## 9. What this standard is not
 It does not certify safety. It does not rank tools. It does not claim a portable guarantee for any function. It reports where
