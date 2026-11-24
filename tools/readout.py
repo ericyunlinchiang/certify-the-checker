@@ -41,7 +41,8 @@ def main():
 
     # static checkers
     checkers = {}
-    for key, label in (('clang', 'clang --analyze'), ('gcc', 'gcc -Wall -Wextra -fanalyzer'),
+    for key, label in (('warn', 'gcc -Wall -Wextra -Wconversion -Wsign-conversion'),
+                       ('clang', 'clang --analyze'), ('gcc', 'gcc -Wall -Wextra -fanalyzer'),
                        ('cppcheck', 'cppcheck --enable=all')):
         p = os.path.join(out, 'static', key + '.txt')
         if not os.path.exists(p):
@@ -173,8 +174,8 @@ def main():
                     print('   note: %s also reported line %d; it is not a bug line, and no run confirmed a bug there.'
                           % (ch['label'], n))
         print('   readout written: %s' % os.path.join(out, 'readout.json'))
-    print('RESULT %s clang=%s gcc=%s cppcheck=%s exec:%s' % (
-        name, checkers['clang']['verdict'], checkers['gcc']['verdict'], checkers['cppcheck']['verdict'],
+    print('RESULT %s warn=%s clang=%s gcc=%s cppcheck=%s exec:%s' % (
+        name, checkers['warn']['verdict'], checkers['clang']['verdict'], checkers['gcc']['verdict'], checkers['cppcheck']['verdict'],
         ''.join(' %s=%s' % (c, exe[c]['verdict']) for c in classes)))
 
 if __name__ == '__main__':

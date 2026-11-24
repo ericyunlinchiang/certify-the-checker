@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.4 (2026-11-25)
+- New column: compiler warnings (`gcc -Wall -Wextra -Wconversion -Wsign-conversion`); silent on all six examples, also
+  with the explicit cast in 01 removed. New "any static check" column. Results of the other columns unchanged.
+- README: says up front that this is not a new discovery; new section on combining checks and the "white zone", with
+  three 2026 measurements (feedback from r/cprogramming).
+
 ## v0.3.3 (2026-11-24)
 - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
 

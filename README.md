@@ -6,10 +6,14 @@
 six small, runnable C examples. It also gives a short reporting format for writing down what a CLEAN result really covers.
 It is for anyone who uses linters, static analyzers or AI code review. No security background needed.
 
+This is not a new discovery: proving C code correct is out of reach for these tools, and static analysis is a set of
+heuristics. The goal here is practical: **no single check covers everything, so combine different kinds of checks and
+write down what is still uncovered** (the "white zone"), instead of reading one CLEAN as "safe".
+
 ## What this shows, and what it does not
 
 Shows:
-- on six small examples written for this repo, three free checkers (clang, gcc -fanalyzer, cppcheck) sometimes say CLEAN when
+- on six small examples written for this repo, compiler warnings and three free checkers (clang, gcc -fanalyzer, cppcheck) sometimes say CLEAN when
   running the code finds a bug, and sometimes find a bug the tests never reach;
 - why "the line ran in my tests" is weaker than "the risky case was tested", measured with coverage.
 
@@ -19,27 +23,50 @@ Does not show:
 
 ## Results
 
-Ubuntu 24.04: gcc 13.3.0 (`-Wall -Wextra -fanalyzer`), clang 18.1.3 (`--analyze`), cppcheck 2.13.0 (`--enable=all`).
+Ubuntu 24.04: compiler warnings = gcc 13.3.0 `-Wall -Wextra -Wconversion -Wsign-conversion`; gcc 13.3.0
+(`-Wall -Wextra -fanalyzer`), clang 18.1.3 (`--analyze`), cppcheck 2.13.0 (`--enable=all`).
 "Running the code" = AddressSanitizer + UBSan, one run per kind of input. CI re-runs this table on every change and
 publishes all raw outputs (the "raw-outputs" artifact of each Actions run).
 
-| example | clang --analyze | gcc -fanalyzer | cppcheck | running the code (per kind of input) |
-|---|---|---|---|---|
-| 01-integer-truncation | CLEAN | BUG | CLEAN | normal=CLEAN large=BUG |
-| 02-off-by-one | CLEAN | CLEAN | CLEAN | normal=CLEAN boundary=BUG |
-| 03-signed-length | CLEAN | CLEAN | CLEAN | normal=CLEAN negative=BUG |
-| 04-use-after-free | BUG | BUG | BUG | normal=CLEAN error=CLEAN error-read=BUG |
-| 05-untested-error-path | CLEAN | BUG | BUG | normal=CLEAN |
-| 06-divide-by-zero | BUG | CLEAN | CLEAN | normal=CLEAN empty=BUG |
+| example | compiler warnings | clang --analyze | gcc -fanalyzer | cppcheck | any static check | running the code (per kind of input) |
+|---|---|---|---|---|---|---|
+| 01-integer-truncation | CLEAN | CLEAN | BUG | CLEAN | BUG | normal=CLEAN large=BUG |
+| 02-off-by-one | CLEAN | CLEAN | CLEAN | CLEAN | CLEAN | normal=CLEAN boundary=BUG |
+| 03-signed-length | CLEAN | CLEAN | CLEAN | CLEAN | CLEAN | normal=CLEAN negative=BUG |
+| 04-use-after-free | CLEAN | BUG | BUG | BUG | BUG | normal=CLEAN error=CLEAN error-read=BUG |
+| 05-untested-error-path | CLEAN | CLEAN | BUG | BUG | BUG | normal=CLEAN |
+| 06-divide-by-zero | CLEAN | BUG | CLEAN | CLEAN | BUG | normal=CLEAN empty=BUG |
 
 What the table says:
 
-- **02, 03**: all three checkers say CLEAN, yet the code breaks on one kind of input.
+- **02, 03**: all four static checks say CLEAN, yet the code breaks on one kind of input.
+- **Compiler warnings** are silent on all six, even with `-Wconversion`. In 01 the size is computed with an explicit
+  `(uint16_t)` cast; removing the cast (`uint16_t sz = n * 4;`) still gives no warning from gcc 13.3 or clang 18.1.
+- **Combined**: every bug here is found by at least one check (static or running the right input). No single check finds
+  all six. That is the point: combine different kinds of checks.
 - **05**: the opposite. Two checkers find the bug, but the tests (normal input only) never reach it: the root-cause line
   ran 0 times. Running the code is not automatically better.
 - **01, 06**: the checkers disagree with each other. 06 is not a memory bug.
-- **04**: all three find it; cppcheck also reports a double free on line 12 that never happens at run time.
+- **04**: all three analyzers find it; cppcheck also reports a double free on line 12 that never happens at run time.
 - In every row, normal input passes. A test suite with only normal inputs would pass too.
+
+## How close can a combination of checks get? (the white zone)
+
+Not to 100%, but much closer than one tool. Published measurements (2026):
+- A curated set of 108 real, exploitable web vulnerabilities: one rule-based scanner found 89, one AI reviewer 85, the two
+  together 101; adding more tools added nothing; 7 were missed by all, and reviewers found at least 7 more real ones that
+  were not in the set ([arXiv 2610.38617](https://arxiv.org/abs/2610.38617); written by the scanner's vendor).
+- Different kinds of tools miss different bugs; more runs of the same kind of tool mostly find the same bugs again
+  ([arXiv 2610.35987](https://arxiv.org/abs/2610.35987)).
+- Static analyzers on 20,000 real C/C++ fixes often alert on the fixed code as much as on the vulnerable code, so check
+  every CLEAN and every BUG against what was really analysed ([arXiv 2611.03742](https://arxiv.org/abs/2611.03742)).
+
+What to do in practice:
+1. Use checks of different kinds: compiler warnings, two or more static analyzers, sanitizers on real inputs, a fuzzer,
+   and a human or AI review.
+2. For each CLEAN, write down what it covered (this repo's readout format) and what it did not: that is your white zone.
+3. Measure the white zone on bugs you already know about (old fixes in your own project): which ones would your
+   combination have caught? Next in this repo: a fuzzing column and a set of real fixed bugs.
 
 **Tried another checker or an AI reviewer?** Please share the result with the "Checker result" issue template.
 
@@ -53,6 +80,10 @@ No. It means the checker found nothing with its rules, flags and version. In thi
 Not in example 02 (clang 18.1.3, `--analyze`): a loop written with `<=` instead of `<` writes one element past a 16-byte
 stack buffer, and clang reports nothing. gcc -fanalyzer and cppcheck also report nothing. AddressSanitizer catches it on
 the boundary input.
+
+### Do compiler warnings (-Wall -Wextra -Wconversion) catch these?
+Not here: gcc 13.3 with `-Wall -Wextra -Wconversion -Wsign-conversion` reports nothing on any bug line in the six
+examples. In example 01, removing the explicit `(uint16_t)` cast still gives no warning (gcc 13.3, clang 18.1).
 
 ### Does gcc -fanalyzer catch a buffer overflow caused by integer truncation?
 Yes in example 01 (gcc 13.3.0): it flags the heap overflow when a buffer size is computed in 16 bits. clang --analyze and

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run one example:
-#   1. three static checkers on target.c (raw output kept),
+#   1. four static checks on target.c (raw output kept): compiler warnings, clang, gcc -fanalyzer, cppcheck,
 #   2. the code itself under AddressSanitizer + UBSan, one run per input class,
 #   3. a coverage build (gcov) per input class, to measure how deep each run went.
 # Then tools/readout.py prints a summary and writes readout.json (schema: schema/readout.schema.json).
@@ -21,6 +21,7 @@ WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"; [ "$KEEP" = 1 ] || rm -rf "$OUT"' EXI
 # 1. static checkers (run from the example dir so reported paths are "target.c:LINE")
 (cd "$DIR" && clang --analyze -o /dev/null target.c) > "$OUT/static/clang.txt" 2>&1
 (cd "$DIR" && gcc -Wall -Wextra -fanalyzer -c target.c -o /dev/null) > "$OUT/static/gcc.txt" 2>&1
+(cd "$DIR" && gcc -Wall -Wextra -Wconversion -Wsign-conversion -c target.c -o /dev/null) > "$OUT/static/warn.txt" 2>&1
 if command -v cppcheck >/dev/null 2>&1; then
   (cd "$DIR" && cppcheck --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --quiet target.c) \
     > "$OUT/static/cppcheck.txt" 2>&1

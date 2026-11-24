@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Certify-the-Checker: what "no issues found" from a static analyzer really covers</title>
-<meta name="description" content="Six small runnable C examples compare clang --analyze, gcc -fanalyzer and cppcheck with running the code under AddressSanitizer, with measured coverage. A short standard for reporting a CLEAN result with its scope.">
+<meta name="description" content="Six small runnable C examples compare compiler warnings, clang --analyze, gcc -fanalyzer and cppcheck with running the code under AddressSanitizer, with measured coverage. A short standard for reporting a CLEAN result with its scope.">
 <meta name="author" content="Eric Chiang">
 <link rel="canonical" href="https://ericyunlinchiang.github.io/certify-the-checker/">
 <meta property="og:title" content="Certify-the-Checker">
@@ -22,7 +22,7 @@
   "programmingLanguage": "C",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "author": {"@type": "Person", "name": "Eric Chiang"},
-  "version": "0.3.3",
+  "version": "0.3.4",
   "keywords": "static analysis, false negatives, clang static analyzer, gcc -fanalyzer, cppcheck, AddressSanitizer, UBSan, code coverage, gcov, software testing, AI code review"
 }
 </script>
@@ -57,14 +57,14 @@ of input that were run. Six small C examples show this with three free checkers 
 "Running the code" = AddressSanitizer + UBSan, one run per kind of input. Re-run on every change by CI.</p>
 <div class="table-wrap">
 <table>
-<thead><tr><th>Example</th><th>clang --analyze</th><th>gcc -fanalyzer</th><th>cppcheck</th><th>Running the code</th></tr></thead>
+<thead><tr><th>Example</th><th>Compiler warnings</th><th>clang --analyze</th><th>gcc -fanalyzer</th><th>cppcheck</th><th>Running the code</th></tr></thead>
 <tbody>
-<tr><td>01 integer truncation</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="clean">CLEAN</td><td>normal CLEAN, large BUG</td></tr>
-<tr><td>02 off-by-one</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, boundary BUG</td></tr>
-<tr><td>03 signed length</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, negative BUG</td></tr>
-<tr><td>04 use-after-free</td><td class="bug">BUG</td><td class="bug">BUG</td><td class="bug">BUG</td><td>only error-path read BUG</td></tr>
-<tr><td>05 untested error path</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="bug">BUG</td><td>normal CLEAN (bug never reached)</td></tr>
-<tr><td>06 divide by zero</td><td class="bug">BUG</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, empty BUG</td></tr>
+<tr><td>01 integer truncation</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="clean">CLEAN</td><td>normal CLEAN, large BUG</td></tr>
+<tr><td>02 off-by-one</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, boundary BUG</td></tr>
+<tr><td>03 signed length</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, negative BUG</td></tr>
+<tr><td>04 use-after-free</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="bug">BUG</td><td class="bug">BUG</td><td>only error-path read BUG</td></tr>
+<tr><td>05 untested error path</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="bug">BUG</td><td>normal CLEAN (bug never reached)</td></tr>
+<tr><td>06 divide by zero</td><td class="clean">CLEAN</td><td class="bug">BUG</td><td class="clean">CLEAN</td><td class="clean">CLEAN</td><td>normal CLEAN, empty BUG</td></tr>
 </tbody>
 </table>
 </div>
@@ -77,7 +77,7 @@ docker build -t certify-the-checker . &amp;&amp; docker run --rm certify-the-che
 
 <h2>FAQ</h2>
 <h3>Does "no issues found" from a static analyzer mean my code is safe?</h3>
-<p>No. In examples 02 and 03, clang --analyze, gcc -fanalyzer and cppcheck report nothing, yet the code crashes on one kind of input.</p>
+<p>No. In examples 02 and 03, compiler warnings (-Wconversion included), clang --analyze, gcc -fanalyzer and cppcheck report nothing, yet the code crashes on one kind of input.</p>
 <h3>Does the clang static analyzer catch off-by-one errors?</h3>
 <p>Not in example 02 (clang 18.1.3): a <code>&lt;=</code> loop writes one element past a stack buffer and nothing is reported. AddressSanitizer catches it on the boundary input.</p>
 <h3>Is running the code with AddressSanitizer enough?</h3>

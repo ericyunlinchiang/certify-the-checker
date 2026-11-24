@@ -1,7 +1,7 @@
 # Certify-the-Checker
 
 > A "no issues found" (CLEAN) result from a code checker is only true for what was actually checked: the build settings and
-> the kinds of input that were run. Six small C examples compare three free checkers (clang --analyze, gcc -fanalyzer,
+> the kinds of input that were run. Six small C examples compare compiler warnings and three free checkers (clang --analyze, gcc -fanalyzer,
 > cppcheck) with running the code under AddressSanitizer/UBSan, and measure test coverage depth with gcov. A short standard
 > describes how to report a CLEAN result with its scope.
 

@@ -16,10 +16,11 @@ command -v cppcheck >/dev/null 2>&1 || echo "(cppcheck not installed: its column
 res="$(mktemp)"; trap 'rm -f "$res"' EXIT
 for d in "$ROOT"/examples/*/; do "$ROOT/tools/run_example.sh" "$d" --quiet | grep '^RESULT' >> "$res"; done
 echo
-echo "| example | clang --analyze | gcc -fanalyzer | cppcheck | running the code (per kind of input) |"
-echo "|---|---|---|---|---|"
-while read -r _ name c g p rest; do
-  echo "| $name | ${c#clang=} | ${g#gcc=} | ${p#cppcheck=} | ${rest#exec: } |"
+echo "| example | compiler warnings | clang --analyze | gcc -fanalyzer | cppcheck | any static check | running the code (per kind of input) |"
+echo "|---|---|---|---|---|---|---|"
+while read -r _ name w c g p rest; do
+  any=CLEAN; case " ${w#warn=} ${c#clang=} ${g#gcc=} ${p#cppcheck=} " in *" BUG "*) any=BUG;; esac
+  echo "| $name | ${w#warn=} | ${c#clang=} | ${g#gcc=} | ${p#cppcheck=} | $any | ${rest#exec: } |"
 done < "$res"
 if [ -n "${CTC_OUT:-}" ]; then
   python3 - "$CTC_OUT" <<'PY'

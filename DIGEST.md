@@ -8,7 +8,7 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
    1  # Certify-the-Checker
    2  
    3  > A "no issues found" (CLEAN) result from a code checker is only true for what was actually checked: the build settings and
-   4  > the kinds of input that were run. Six small C examples compare three free checkers (clang --analyze, gcc -fanalyzer,
+   4  > the kinds of input that were run. Six small C examples compare compiler warnings and three free checkers (clang --analyze, gcc -fanalyzer,
    5  > cppcheck) with running the code under AddressSanitizer/UBSan, and measure test coverage depth with gcov. A short standard
    6  > describes how to report a CLEAN result with its scope.
    7  
@@ -34,172 +34,203 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
    6  six small, runnable C examples. It also gives a short reporting format for writing down what a CLEAN result really covers.
    7  It is for anyone who uses linters, static analyzers or AI code review. No security background needed.
    8  
-   9  ## What this shows, and what it does not
-  10  
-  11  Shows:
-  12  - on six small examples written for this repo, three free checkers (clang, gcc -fanalyzer, cppcheck) sometimes say CLEAN when
-  13    running the code finds a bug, and sometimes find a bug the tests never reach;
-  14  - why "the line ran in my tests" is weaker than "the risky case was tested", measured with coverage.
-  15  
-  16  Does not show:
-  17  - how often this happens in real projects (these are six hand-written teaching examples);
-  18  - that any of these tools is bad. Results depend on tool versions and flags, which are listed below.
+   9  This is not a new discovery: proving C code correct is out of reach for these tools, and static analysis is a set of
+  10  heuristics. The goal here is practical: **no single check covers everything, so combine different kinds of checks and
+  11  write down what is still uncovered** (the "white zone"), instead of reading one CLEAN as "safe".
+  12  
+  13  ## What this shows, and what it does not
+  14  
+  15  Shows:
+  16  - on six small examples written for this repo, compiler warnings and three free checkers (clang, gcc -fanalyzer, cppcheck) sometimes say CLEAN when
+  17    running the code finds a bug, and sometimes find a bug the tests never reach;
+  18  - why "the line ran in my tests" is weaker than "the risky case was tested", measured with coverage.
   19  
-  20  ## Results
-  21  
-  22  Ubuntu 24.04: gcc 13.3.0 (`-Wall -Wextra -fanalyzer`), clang 18.1.3 (`--analyze`), cppcheck 2.13.0 (`--enable=all`).
-  23  "Running the code" = AddressSanitizer + UBSan, one run per kind of input. CI re-runs this table on every change and
-  24  publishes all raw outputs (the "raw-outputs" artifact of each Actions run).
+  20  Does not show:
+  21  - how often this happens in real projects (these are six hand-written teaching examples);
+  22  - that any of these tools is bad. Results depend on tool versions and flags, which are listed below.
+  23  
+  24  ## Results
   25  
-  26  | example | clang --analyze | gcc -fanalyzer | cppcheck | running the code (per kind of input) |
-  27  |---|---|---|---|---|
-  28  | 01-integer-truncation | CLEAN | BUG | CLEAN | normal=CLEAN large=BUG |
-  29  | 02-off-by-one | CLEAN | CLEAN | CLEAN | normal=CLEAN boundary=BUG |
-  30  | 03-signed-length | CLEAN | CLEAN | CLEAN | normal=CLEAN negative=BUG |
-  31  | 04-use-after-free | BUG | BUG | BUG | normal=CLEAN error=CLEAN error-read=BUG |
-  32  | 05-untested-error-path | CLEAN | BUG | BUG | normal=CLEAN |
-  33  | 06-divide-by-zero | BUG | CLEAN | CLEAN | normal=CLEAN empty=BUG |
-  34  
-  35  What the table says:
-  36  
-  37  - **02, 03**: all three checkers say CLEAN, yet the code breaks on one kind of input.
-  38  - **05**: the opposite. Two checkers find the bug, but the tests (normal input only) never reach it: the root-cause line
-  39    ran 0 times. Running the code is not automatically better.
-  40  - **01, 06**: the checkers disagree with each other. 06 is not a memory bug.
-  41  - **04**: all three find it; cppcheck also reports a double free on line 12 that never happens at run time.
-  42  - In every row, normal input passes. A test suite with only normal inputs would pass too.
-  43  
-  44  **Tried another checker or an AI reviewer?** Please share the result with the "Checker result" issue template.
-  45  
-  46  ## FAQ
-  47  
-  48  ### Does "no issues found" from a static analyzer mean my code is safe?
-  49  No. It means the checker found nothing with its rules, flags and version. In this repo, examples 02 and 03 pass clang
-  50  --analyze, gcc -fanalyzer and cppcheck with no findings, yet both crash on one kind of input.
-  51  
-  52  ### Does the clang static analyzer catch off-by-one errors?
-  53  Not in example 02 (clang 18.1.3, `--analyze`): a loop written with `<=` instead of `<` writes one element past a 16-byte
-  54  stack buffer, and clang reports nothing. gcc -fanalyzer and cppcheck also report nothing. AddressSanitizer catches it on
-  55  the boundary input.
-  56  
-  57  ### Does gcc -fanalyzer catch a buffer overflow caused by integer truncation?
-  58  Yes in example 01 (gcc 13.3.0): it flags the heap overflow when a buffer size is computed in 16 bits. clang --analyze and
-  59  cppcheck do not.
-  60  
-  61  ### Does cppcheck find use-after-free?
-  62  Yes in example 04 (cppcheck 2.13.0). It also reports a double free on line 12 that never happens when the code runs, so a
-  63  finding needs checking too.
-  64  
-  65  ### Is running the code with AddressSanitizer enough?
-  66  No. It only sees what your inputs reach. In example 05 the tests use normal input only: the line that causes the bug runs
-  67  0 times, AddressSanitizer reports nothing, while gcc -fanalyzer and cppcheck find the bug.
-  68  
-  69  ### What is the difference between line coverage and testing the risky case?
-  70  A line can run many times without the dangerous condition ever happening. In example 02, the buggy line runs 9 times on
-  71  normal input; the bug only appears when the count equals the buffer size. This repo measures both with gcov.
+  26  Ubuntu 24.04: compiler warnings = gcc 13.3.0 `-Wall -Wextra -Wconversion -Wsign-conversion`; gcc 13.3.0
+  27  (`-Wall -Wextra -fanalyzer`), clang 18.1.3 (`--analyze`), cppcheck 2.13.0 (`--enable=all`).
+  28  "Running the code" = AddressSanitizer + UBSan, one run per kind of input. CI re-runs this table on every change and
+  29  publishes all raw outputs (the "raw-outputs" artifact of each Actions run).
+  30  
+  31  | example | compiler warnings | clang --analyze | gcc -fanalyzer | cppcheck | any static check | running the code (per kind of input) |
+  32  |---|---|---|---|---|---|---|
+  33  | 01-integer-truncation | CLEAN | CLEAN | BUG | CLEAN | BUG | normal=CLEAN large=BUG |
+  34  | 02-off-by-one | CLEAN | CLEAN | CLEAN | CLEAN | CLEAN | normal=CLEAN boundary=BUG |
+  35  | 03-signed-length | CLEAN | CLEAN | CLEAN | CLEAN | CLEAN | normal=CLEAN negative=BUG |
+  36  | 04-use-after-free | CLEAN | BUG | BUG | BUG | BUG | normal=CLEAN error=CLEAN error-read=BUG |
+  37  | 05-untested-error-path | CLEAN | CLEAN | BUG | BUG | BUG | normal=CLEAN |
+  38  | 06-divide-by-zero | CLEAN | BUG | CLEAN | CLEAN | BUG | normal=CLEAN empty=BUG |
+  39  
+  40  What the table says:
+  41  
+  42  - **02, 03**: all four static checks say CLEAN, yet the code breaks on one kind of input.
+  43  - **Compiler warnings** are silent on all six, even with `-Wconversion`. In 01 the size is computed with an explicit
+  44    `(uint16_t)` cast; removing the cast (`uint16_t sz = n * 4;`) still gives no warning from gcc 13.3 or clang 18.1.
+  45  - **Combined**: every bug here is found by at least one check (static or running the right input). No single check finds
+  46    all six. That is the point: combine different kinds of checks.
+  47  - **05**: the opposite. Two checkers find the bug, but the tests (normal input only) never reach it: the root-cause line
+  48    ran 0 times. Running the code is not automatically better.
+  49  - **01, 06**: the checkers disagree with each other. 06 is not a memory bug.
+  50  - **04**: all three analyzers find it; cppcheck also reports a double free on line 12 that never happens at run time.
+  51  - In every row, normal input passes. A test suite with only normal inputs would pass too.
+  52  
+  53  ## How close can a combination of checks get? (the white zone)
+  54  
+  55  Not to 100%, but much closer than one tool. Published measurements (2026):
+  56  - A curated set of 108 real, exploitable web vulnerabilities: one rule-based scanner found 89, one AI reviewer 85, the two
+  57    together 101; adding more tools added nothing; 7 were missed by all, and reviewers found at least 7 more real ones that
+  58    were not in the set ([arXiv 2610.38617](https://arxiv.org/abs/2610.38617); written by the scanner's vendor).
+  59  - Different kinds of tools miss different bugs; more runs of the same kind of tool mostly find the same bugs again
+  60    ([arXiv 2610.35987](https://arxiv.org/abs/2610.35987)).
+  61  - Static analyzers on 20,000 real C/C++ fixes often alert on the fixed code as much as on the vulnerable code, so check
+  62    every CLEAN and every BUG against what was really analysed ([arXiv 2611.03742](https://arxiv.org/abs/2611.03742)).
+  63  
+  64  What to do in practice:
+  65  1. Use checks of different kinds: compiler warnings, two or more static analyzers, sanitizers on real inputs, a fuzzer,
+  66     and a human or AI review.
+  67  2. For each CLEAN, write down what it covered (this repo's readout format) and what it did not: that is your white zone.
+  68  3. Measure the white zone on bugs you already know about (old fixes in your own project): which ones would your
+  69     combination have caught? Next in this repo: a fuzzing column and a set of real fixed bugs.
+  70  
+  71  **Tried another checker or an AI reviewer?** Please share the result with the "Checker result" issue template.
   72  
-  73  ### How should I report a static analysis or code review result?
-  74  Report the CLEAN or BUG verdict together with the build settings, the kinds of input that were tried, how deep the testing
-  75  went, and whether the test was shown able to fail. `STANDARD-v0.md` defines a short format for this, and
-  76  `readout-template.json` is a fill-in version.
-  77  
-  78  ### Can I use this for AI code reviewers?
-  79  Yes. An AI reviewer is just another checker: give it the same code, record its verdict per example and per run, and compare
-  80  with running the code. Please share results with the "Checker result" issue template.
-  81  
-  82  ## Related work
+  73  ## FAQ
+  74  
+  75  ### Does "no issues found" from a static analyzer mean my code is safe?
+  76  No. It means the checker found nothing with its rules, flags and version. In this repo, examples 02 and 03 pass clang
+  77  --analyze, gcc -fanalyzer and cppcheck with no findings, yet both crash on one kind of input.
+  78  
+  79  ### Does the clang static analyzer catch off-by-one errors?
+  80  Not in example 02 (clang 18.1.3, `--analyze`): a loop written with `<=` instead of `<` writes one element past a 16-byte
+  81  stack buffer, and clang reports nothing. gcc -fanalyzer and cppcheck also report nothing. AddressSanitizer catches it on
+  82  the boundary input.
   83  
-  84  - **NIST SARD / Juliet test suite** (https://samate.nist.gov/SARD/): a large labelled corpus of synthetic C/C++ and Java
-  85    test cases for scoring analyzers at scale. This repo is the opposite end: a few tiny cases you can read in a minute, plus
-  86    a format for stating what a CLEAN result covers. The two are complementary.
-  87  - **Static analyzer benchmark suites and comparison harnesses** run many tools over many cases and report scores. This repo
-  88    does not rank tools; it shows, case by case, why a CLEAN verdict needs its build settings, input kinds and coverage
-  89    depth stated next to it.
-  90  
-  91  ## Quick start (about 1 minute)
-  92  
-  93  With Docker (any OS):
-  94  
-  95  ```
-  96  git clone https://github.com/ericyunlinchiang/certify-the-checker.git
-  97  cd certify-the-checker
-  98  docker build -t certify-the-checker . && docker run --rm certify-the-checker
-  99  ```
- 100  
- 101  Without Docker: Linux with GNU **gcc 13+**, **clang**, **python3**; **cppcheck** optional.
- 102  Ubuntu 24.04: `sudo apt-get install gcc clang cppcheck python3`. Ubuntu 22.04 ships an older gcc: use Docker. On macOS the
- 103  `gcc` command is clang: use Docker.
- 104  
- 105  ```
- 106  tools/run_all.sh                                   # the table above
- 107  tools/run_example.sh examples/02-off-by-one        # one example in detail: lines, coverage, readout.json
- 108  ```
- 109  
- 110  `tools/run_all.sh --check` compares your table with `examples/expected-results.txt`. A match means **you reproduced the
- 111  same results**. It does not mean a checker is good. Other tool versions can give different results.
+  84  ### Do compiler warnings (-Wall -Wextra -Wconversion) catch these?
+  85  Not here: gcc 13.3 with `-Wall -Wextra -Wconversion -Wsign-conversion` reports nothing on any bug line in the six
+  86  examples. In example 01, removing the explicit `(uint16_t)` cast still gives no warning (gcc 13.3, clang 18.1).
+  87  
+  88  ### Does gcc -fanalyzer catch a buffer overflow caused by integer truncation?
+  89  Yes in example 01 (gcc 13.3.0): it flags the heap overflow when a buffer size is computed in 16 bits. clang --analyze and
+  90  cppcheck do not.
+  91  
+  92  ### Does cppcheck find use-after-free?
+  93  Yes in example 04 (cppcheck 2.13.0). It also reports a double free on line 12 that never happens when the code runs, so a
+  94  finding needs checking too.
+  95  
+  96  ### Is running the code with AddressSanitizer enough?
+  97  No. It only sees what your inputs reach. In example 05 the tests use normal input only: the line that causes the bug runs
+  98  0 times, AddressSanitizer reports nothing, while gcc -fanalyzer and cppcheck find the bug.
+  99  
+ 100  ### What is the difference between line coverage and testing the risky case?
+ 101  A line can run many times without the dangerous condition ever happening. In example 02, the buggy line runs 9 times on
+ 102  normal input; the bug only appears when the count equals the buffer size. This repo measures both with gcov.
+ 103  
+ 104  ### How should I report a static analysis or code review result?
+ 105  Report the CLEAN or BUG verdict together with the build settings, the kinds of input that were tried, how deep the testing
+ 106  went, and whether the test was shown able to fail. `STANDARD-v0.md` defines a short format for this, and
+ 107  `readout-template.json` is a fill-in version.
+ 108  
+ 109  ### Can I use this for AI code reviewers?
+ 110  Yes. An AI reviewer is just another checker: give it the same code, record its verdict per example and per run, and compare
+ 111  with running the code. Please share results with the "Checker result" issue template.
  112  
- 113  ## How results are decided
+ 113  ## Related work
  114  
- 115  - Each example lists its **bug lines** in `example.env`: the root cause and the line where it goes wrong (for example
- 116    01: line 17 computes the size in 16 bits, line 21 writes past the buffer).
- 117  - A checker **finds the bug** if it reports any bug line. Other lines it reports are printed as notes.
- 118  - Running the code: **BUG** if AddressSanitizer/UBSan reports an error in the example; **CLEAN** if it runs normally;
- 119    **NOTRIGGER** if no bug line ran at all.
- 120  - **Coverage depth** is measured with gcov for each kind of input: `none` (no bug line ran) < `partial` (some ran, often
- 121    not the root cause) < `line` (all ran) < `branch` (and every branch in the function went both ways) < `input-class`
- 122    (the input actually triggered the bug).
- 123  - **Controlled** means at least one input makes the run report BUG. A run is only shown able to fail if that happens.
- 124  
- 125  Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
- 126  
- 127  ## Use it on your own code (4 steps)
- 128  
- 129  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
- 130  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
- 131     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
- 132  3. **Show your test can fail**: use an input or a planted bug that must be reported.
- 133  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
- 134  
- 135  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
- 136  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
- 137  
- 138  ## Words used
- 139  
- 140  | Word | Meaning |
- 141  |---|---|
- 142  | CLEAN / BUG | "no issue found" / "issue found" |
- 143  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
- 144  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
- 145  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
- 146  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
- 147  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
- 148  | coverage depth | how thoroughly the risky code was exercised (see above) |
- 149  | controlled | the test was shown able to fail |
- 150  
- 151  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
- 152  
- 153  ## Files
- 154  
- 155  - `STANDARD-v0.md`: the standard
- 156  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
- 157  - `examples/expected-results.txt`: the table above, machine-readable
- 158  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
- 159  - `schema/readout.schema.json`, `readout-template.json`
- 160  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
- 161  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
- 162  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
- 163  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
- 164  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+ 115  - **NIST SARD / Juliet test suite** (https://samate.nist.gov/SARD/): a large labelled corpus of synthetic C/C++ and Java
+ 116    test cases for scoring analyzers at scale. This repo is the opposite end: a few tiny cases you can read in a minute, plus
+ 117    a format for stating what a CLEAN result covers. The two are complementary.
+ 118  - **Static analyzer benchmark suites and comparison harnesses** run many tools over many cases and report scores. This repo
+ 119    does not rank tools; it shows, case by case, why a CLEAN verdict needs its build settings, input kinds and coverage
+ 120    depth stated next to it.
+ 121  
+ 122  ## Quick start (about 1 minute)
+ 123  
+ 124  With Docker (any OS):
+ 125  
+ 126  ```
+ 127  git clone https://github.com/ericyunlinchiang/certify-the-checker.git
+ 128  cd certify-the-checker
+ 129  docker build -t certify-the-checker . && docker run --rm certify-the-checker
+ 130  ```
+ 131  
+ 132  Without Docker: Linux with GNU **gcc 13+**, **clang**, **python3**; **cppcheck** optional.
+ 133  Ubuntu 24.04: `sudo apt-get install gcc clang cppcheck python3`. Ubuntu 22.04 ships an older gcc: use Docker. On macOS the
+ 134  `gcc` command is clang: use Docker.
+ 135  
+ 136  ```
+ 137  tools/run_all.sh                                   # the table above
+ 138  tools/run_example.sh examples/02-off-by-one        # one example in detail: lines, coverage, readout.json
+ 139  ```
+ 140  
+ 141  `tools/run_all.sh --check` compares your table with `examples/expected-results.txt`. A match means **you reproduced the
+ 142  same results**. It does not mean a checker is good. Other tool versions can give different results.
+ 143  
+ 144  ## How results are decided
+ 145  
+ 146  - Each example lists its **bug lines** in `example.env`: the root cause and the line where it goes wrong (for example
+ 147    01: line 17 computes the size in 16 bits, line 21 writes past the buffer).
+ 148  - A checker **finds the bug** if it reports any bug line. Other lines it reports are printed as notes.
+ 149  - Running the code: **BUG** if AddressSanitizer/UBSan reports an error in the example; **CLEAN** if it runs normally;
+ 150    **NOTRIGGER** if no bug line ran at all.
+ 151  - **Coverage depth** is measured with gcov for each kind of input: `none` (no bug line ran) < `partial` (some ran, often
+ 152    not the root cause) < `line` (all ran) < `branch` (and every branch in the function went both ways) < `input-class`
+ 153    (the input actually triggered the bug).
+ 154  - **Controlled** means at least one input makes the run report BUG. A run is only shown able to fail if that happens.
+ 155  
+ 156  Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
+ 157  
+ 158  ## Use it on your own code (4 steps)
+ 159  
+ 160  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
+ 161  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
+ 162     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
+ 163  3. **Show your test can fail**: use an input or a planted bug that must be reported.
+ 164  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
  165  
- 166  ## How to cite
- 167  
- 168  Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
- 169  https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
- 170  from `CITATION.cff` ("Cite this repository").
- 171  
- 172  ## License
- 173  
- 174  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
+ 166  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
+ 167  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
+ 168  
+ 169  ## Words used
+ 170  
+ 171  | Word | Meaning |
+ 172  |---|---|
+ 173  | CLEAN / BUG | "no issue found" / "issue found" |
+ 174  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
+ 175  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
+ 176  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
+ 177  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
+ 178  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
+ 179  | coverage depth | how thoroughly the risky code was exercised (see above) |
+ 180  | controlled | the test was shown able to fail |
+ 181  
+ 182  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
+ 183  
+ 184  ## Files
+ 185  
+ 186  - `STANDARD-v0.md`: the standard
+ 187  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
+ 188  - `examples/expected-results.txt`: the table above, machine-readable
+ 189  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
+ 190  - `schema/readout.schema.json`, `readout-template.json`
+ 191  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
+ 192  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
+ 193  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
+ 194  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
+ 195  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+ 196  
+ 197  ## How to cite
+ 198  
+ 199  Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
+ 200  https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
+ 201  from `CITATION.cff` ("Cite this repository").
+ 202  
+ 203  ## License
+ 204  
+ 205  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
 ```
 
 ## FILE: CHANGELOG.md
@@ -207,34 +238,40 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  # Changelog
    2  
-   3  ## v0.3.3 (2026-11-24)
-   4  - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
-   5  
-   6  ## v0.3.2 (2026-11-24)
-   7  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
-   8  - First release archived on Zenodo (citable with a DOI).
-   9  
-  10  ## v0.3.1 (2026-11-24)
-  11  - README: FAQ answering common questions with the measured results.
-  12  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
-  13  
-  14  ## v0.3 (2026-11-24)
-  15  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
-  16  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
-  17  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
-  18  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
-  19  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
-  20  - The standard opens with a plain-language version; README says what the repo does and does not show.
-  21  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
-  22  
-  23  ## v0.2 (2026-11-24)
-  24  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
-  25  
-  26  ## v0.1 (2026-11-24)
-  27  - Plain-language README, runnable example folder, readout template.
+   3  ## v0.3.4 (2026-11-25)
+   4  - New column: compiler warnings (`gcc -Wall -Wextra -Wconversion -Wsign-conversion`); silent on all six examples, also
+   5    with the explicit cast in 01 removed. New "any static check" column. Results of the other columns unchanged.
+   6  - README: says up front that this is not a new discovery; new section on combining checks and the "white zone", with
+   7    three 2026 measurements (feedback from r/cprogramming).
+   8  
+   9  ## v0.3.3 (2026-11-24)
+  10  - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
+  11  
+  12  ## v0.3.2 (2026-11-24)
+  13  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
+  14  - First release archived on Zenodo (citable with a DOI).
+  15  
+  16  ## v0.3.1 (2026-11-24)
+  17  - README: FAQ answering common questions with the measured results.
+  18  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
+  19  
+  20  ## v0.3 (2026-11-24)
+  21  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
+  22  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
+  23  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
+  24  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
+  25  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
+  26  - The standard opens with a plain-language version; README says what the repo does and does not show.
+  27  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
   28  
-  29  ## v0 (2026-11-24)
-  30  - First release: the standard and one example.
+  29  ## v0.2 (2026-11-24)
+  30  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
+  31  
+  32  ## v0.1 (2026-11-24)
+  33  - Plain-language README, runnable example folder, readout template.
+  34  
+  35  ## v0 (2026-11-24)
+  36  - First release: the standard and one example.
 ```
 
 ## FILE: STANDARD-v0.md
@@ -360,12 +397,12 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ## FILE: examples/expected-results.txt
 
 ```
-   1  01-integer-truncation clang=CLEAN gcc=BUG cppcheck=CLEAN exec: normal=CLEAN large=BUG
-   2  02-off-by-one clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN boundary=BUG
-   3  03-signed-length clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN negative=BUG
-   4  04-use-after-free clang=BUG gcc=BUG cppcheck=BUG exec: normal=CLEAN error=CLEAN error-read=BUG
-   5  05-untested-error-path clang=CLEAN gcc=BUG cppcheck=BUG exec: normal=CLEAN
-   6  06-divide-by-zero clang=BUG gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN empty=BUG
+   1  01-integer-truncation warn=CLEAN clang=CLEAN gcc=BUG cppcheck=CLEAN exec: normal=CLEAN large=BUG
+   2  02-off-by-one warn=CLEAN clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN boundary=BUG
+   3  03-signed-length warn=CLEAN clang=CLEAN gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN negative=BUG
+   4  04-use-after-free warn=CLEAN clang=BUG gcc=BUG cppcheck=BUG exec: normal=CLEAN error=CLEAN error-read=BUG
+   5  05-untested-error-path warn=CLEAN clang=CLEAN gcc=BUG cppcheck=BUG exec: normal=CLEAN
+   6  06-divide-by-zero warn=CLEAN clang=BUG gcc=CLEAN cppcheck=CLEAN exec: normal=CLEAN empty=BUG
 ```
 
 ## FILE: examples/01-integer-truncation/example.env
@@ -659,26 +696,27 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
   16  res="$(mktemp)"; trap 'rm -f "$res"' EXIT
   17  for d in "$ROOT"/examples/*/; do "$ROOT/tools/run_example.sh" "$d" --quiet | grep '^RESULT' >> "$res"; done
   18  echo
-  19  echo "| example | clang --analyze | gcc -fanalyzer | cppcheck | running the code (per kind of input) |"
-  20  echo "|---|---|---|---|---|"
-  21  while read -r _ name c g p rest; do
-  22    echo "| $name | ${c#clang=} | ${g#gcc=} | ${p#cppcheck=} | ${rest#exec: } |"
-  23  done < "$res"
-  24  if [ -n "${CTC_OUT:-}" ]; then
-  25    python3 - "$CTC_OUT" <<'PY'
-  26  import json, glob, os, sys
-  27  out = sys.argv[1]
-  28  docs = [json.load(open(f)) for f in sorted(glob.glob(os.path.join(out, '*', 'readout.json')))]
-  29  json.dump({'standard': 'certify-the-checker v0', 'readouts': docs}, open(os.path.join(out, 'results.json'), 'w'), indent=2)
-  30  print('\nall readouts: %s' % os.path.join(out, 'results.json'))
-  31  PY
-  32  fi
-  33  if [ "${1:-}" = "--check" ]; then
-  34    if diff <(sed 's/^RESULT //' "$res") "$ROOT/examples/expected-results.txt" >/dev/null; then
-  35      echo; echo "CHECK: same results as examples/expected-results.txt (reproduced)"
-  36    else echo; echo "CHECK: results DIFFER from examples/expected-results.txt (other tool versions?)"
-  37      diff <(sed 's/^RESULT //' "$res") "$ROOT/examples/expected-results.txt"; exit 1; fi
-  38  fi
+  19  echo "| example | compiler warnings | clang --analyze | gcc -fanalyzer | cppcheck | any static check | running the code (per kind of input) |"
+  20  echo "|---|---|---|---|---|---|---|"
+  21  while read -r _ name w c g p rest; do
+  22    any=CLEAN; case " ${w#warn=} ${c#clang=} ${g#gcc=} ${p#cppcheck=} " in *" BUG "*) any=BUG;; esac
+  23    echo "| $name | ${w#warn=} | ${c#clang=} | ${g#gcc=} | ${p#cppcheck=} | $any | ${rest#exec: } |"
+  24  done < "$res"
+  25  if [ -n "${CTC_OUT:-}" ]; then
+  26    python3 - "$CTC_OUT" <<'PY'
+  27  import json, glob, os, sys
+  28  out = sys.argv[1]
+  29  docs = [json.load(open(f)) for f in sorted(glob.glob(os.path.join(out, '*', 'readout.json')))]
+  30  json.dump({'standard': 'certify-the-checker v0', 'readouts': docs}, open(os.path.join(out, 'results.json'), 'w'), indent=2)
+  31  print('\nall readouts: %s' % os.path.join(out, 'results.json'))
+  32  PY
+  33  fi
+  34  if [ "${1:-}" = "--check" ]; then
+  35    if diff <(sed 's/^RESULT //' "$res") "$ROOT/examples/expected-results.txt" >/dev/null; then
+  36      echo; echo "CHECK: same results as examples/expected-results.txt (reproduced)"
+  37    else echo; echo "CHECK: results DIFFER from examples/expected-results.txt (other tool versions?)"
+  38      diff <(sed 's/^RESULT //' "$res") "$ROOT/examples/expected-results.txt"; exit 1; fi
+  39  fi
 ```
 
 ## FILE: tools/run_example.sh
@@ -686,7 +724,7 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  #!/usr/bin/env bash
    2  # Run one example:
-   3  #   1. three static checkers on target.c (raw output kept),
+   3  #   1. four static checks on target.c (raw output kept): compiler warnings, clang, gcc -fanalyzer, cppcheck,
    4  #   2. the code itself under AddressSanitizer + UBSan, one run per input class,
    5  #   3. a coverage build (gcov) per input class, to measure how deep each run went.
    6  # Then tools/readout.py prints a summary and writes readout.json (schema: schema/readout.schema.json).
@@ -707,29 +745,30 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
   21  # 1. static checkers (run from the example dir so reported paths are "target.c:LINE")
   22  (cd "$DIR" && clang --analyze -o /dev/null target.c) > "$OUT/static/clang.txt" 2>&1
   23  (cd "$DIR" && gcc -Wall -Wextra -fanalyzer -c target.c -o /dev/null) > "$OUT/static/gcc.txt" 2>&1
-  24  if command -v cppcheck >/dev/null 2>&1; then
-  25    (cd "$DIR" && cppcheck --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --quiet target.c) \
-  26      > "$OUT/static/cppcheck.txt" 2>&1
-  27  else echo "SKIPPED: cppcheck not installed" > "$OUT/static/cppcheck.skipped"; fi
-  28  
-  29  # 2. execution under ASan + UBSan, one process per input class
-  30  gcc -std=c11 -g -O0 -fsanitize=address,undefined -fno-sanitize-recover=all \
-  31      "$DIR/harness.c" "$DIR/target.c" -o "$WORK/x_san" 2>"$OUT/exec/build.log" \
-  32    || { echo "BUILD FAILED (sanitizer build)"; cat "$OUT/exec/build.log"; exit 3; }
-  33  for c in $CLASSES; do "$WORK/x_san" "$c" > "$OUT/exec/$c.txt" 2>&1; echo $? > "$OUT/exec/$c.rc"; done
-  34  
-  35  # 3. coverage build (no sanitizers), one run per input class, gcov JSON with branch data
-  36  cp "$DIR/target.c" "$DIR/harness.c" "$WORK/"
-  37  ( cd "$WORK" && gcc -std=c11 -g -O0 --coverage -fno-stack-protector \
-  38      harness.c target.c "$ROOT/tools/support/gcov_dump_on_crash.c" -o x_cov ) 2>"$OUT/cov/build.log" \
-  39    || { echo "BUILD FAILED (coverage build)"; cat "$OUT/cov/build.log"; exit 3; }
-  40  for c in $CLASSES; do
-  41    ( cd "$WORK" && rm -f ./*.gcda && { ./x_cov "$c" >/dev/null 2>&1 || true; }
-  42      gcov -b --json-format --stdout x_cov-target.gcda > "$OUT/cov/$c.json" 2>/dev/null ) 2>/dev/null
-  43  done
-  44  
-  45  echo "gcc $(gcc -dumpfullversion), clang $(clang --version | sed -n '1s/.*version \([0-9.]*\).*/\1/p'), cppcheck $(cppcheck --version 2>/dev/null | awk '{print $2}'), gcov $(gcov --version | head -1 | awk '{print $NF}')" > "$OUT/versions.txt"
-  46  python3 "$ROOT/tools/readout.py" "$DIR" "$OUT" ${QUIET:+--quiet}
+  24  (cd "$DIR" && gcc -Wall -Wextra -Wconversion -Wsign-conversion -c target.c -o /dev/null) > "$OUT/static/warn.txt" 2>&1
+  25  if command -v cppcheck >/dev/null 2>&1; then
+  26    (cd "$DIR" && cppcheck --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --quiet target.c) \
+  27      > "$OUT/static/cppcheck.txt" 2>&1
+  28  else echo "SKIPPED: cppcheck not installed" > "$OUT/static/cppcheck.skipped"; fi
+  29  
+  30  # 2. execution under ASan + UBSan, one process per input class
+  31  gcc -std=c11 -g -O0 -fsanitize=address,undefined -fno-sanitize-recover=all \
+  32      "$DIR/harness.c" "$DIR/target.c" -o "$WORK/x_san" 2>"$OUT/exec/build.log" \
+  33    || { echo "BUILD FAILED (sanitizer build)"; cat "$OUT/exec/build.log"; exit 3; }
+  34  for c in $CLASSES; do "$WORK/x_san" "$c" > "$OUT/exec/$c.txt" 2>&1; echo $? > "$OUT/exec/$c.rc"; done
+  35  
+  36  # 3. coverage build (no sanitizers), one run per input class, gcov JSON with branch data
+  37  cp "$DIR/target.c" "$DIR/harness.c" "$WORK/"
+  38  ( cd "$WORK" && gcc -std=c11 -g -O0 --coverage -fno-stack-protector \
+  39      harness.c target.c "$ROOT/tools/support/gcov_dump_on_crash.c" -o x_cov ) 2>"$OUT/cov/build.log" \
+  40    || { echo "BUILD FAILED (coverage build)"; cat "$OUT/cov/build.log"; exit 3; }
+  41  for c in $CLASSES; do
+  42    ( cd "$WORK" && rm -f ./*.gcda && { ./x_cov "$c" >/dev/null 2>&1 || true; }
+  43      gcov -b --json-format --stdout x_cov-target.gcda > "$OUT/cov/$c.json" 2>/dev/null ) 2>/dev/null
+  44  done
+  45  
+  46  echo "gcc $(gcc -dumpfullversion), clang $(clang --version | sed -n '1s/.*version \([0-9.]*\).*/\1/p'), cppcheck $(cppcheck --version 2>/dev/null | awk '{print $2}'), gcov $(gcov --version | head -1 | awk '{print $NF}')" > "$OUT/versions.txt"
+  47  python3 "$ROOT/tools/readout.py" "$DIR" "$OUT" ${QUIET:+--quiet}
 ```
 
 ## FILE: tools/readout.py
@@ -778,144 +817,145 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
   41  
   42      # static checkers
   43      checkers = {}
-  44      for key, label in (('clang', 'clang --analyze'), ('gcc', 'gcc -Wall -Wextra -fanalyzer'),
-  45                         ('cppcheck', 'cppcheck --enable=all')):
-  46          p = os.path.join(out, 'static', key + '.txt')
-  47          if not os.path.exists(p):
-  48              checkers[key] = {'label': label, 'verdict': 'SKIPPED', 'lines': []}
-  49              continue
-  50          lines = reported_lines(open(p, errors='replace').read())
-  51          checkers[key] = {'label': label, 'lines': lines,
-  52                           'verdict': 'BUG' if any(l in bug for l in lines) else 'CLEAN'}
-  53  
-  54      # coverage per class
-  55      cov = {}
-  56      for c in classes:
-  57          info = {'bug_lines_run': {}, 'branches_total': 0, 'branches_taken': 0, 'untaken_branch_lines': []}
-  58          p = os.path.join(out, 'cov', c + '.json')
-  59          try:
-  60              doc = json.loads(open(p).read().strip().splitlines()[0])
-  61              for f in doc['files']:
-  62                  if not f['file'].endswith('target.c'):
-  63                      continue
-  64                  for ln in f['lines']:
-  65                      n = ln['line_number']
-  66                      if n in bug:
-  67                          info['bug_lines_run'][n] = ln['count']
-  68                      for b in ln.get('branches', []):
-  69                          info['branches_total'] += 1
-  70                          if b['count'] > 0:
-  71                              info['branches_taken'] += 1
-  72                          elif n not in info['untaken_branch_lines']:
-  73                              info['untaken_branch_lines'].append(n)
-  74          except (OSError, ValueError, IndexError, KeyError):
-  75              info['error'] = 'no coverage data'
-  76          for n in bug:
-  77              info['bug_lines_run'].setdefault(n, 0)
-  78          cov[c] = info
-  79  
-  80      # execution per class
-  81      exe = {}
-  82      for c in classes:
-  83          text = open(os.path.join(out, 'exec', c + '.txt'), errors='replace').read()
-  84          rc = int(open(os.path.join(out, 'exec', c + '.rc')).read().strip() or '0')
-  85          san = ('ERROR: AddressSanitizer' in text or 'runtime error:' in text) and 'target.c:' in text
-  86          any_bug_line_ran = any(v > 0 for v in cov[c]['bug_lines_run'].values())
-  87          if san:
-  88              m = re.search(r'target\.c:(\d+)', text)
-  89              exe[c] = {'verdict': 'BUG', 'line': int(m.group(1)) if m else None}
-  90          elif not any_bug_line_ran:
-  91              exe[c] = {'verdict': 'NOTRIGGER', 'line': None}
-  92          elif rc == 0:
-  93              exe[c] = {'verdict': 'CLEAN', 'line': None}
-  94          else:
-  95              exe[c] = {'verdict': 'ERROR', 'line': None, 'rc': rc}
-  96  
-  97      def depth(c):
-  98          if exe[c]['verdict'] == 'BUG':
-  99              return 'input-class'
- 100          runs = cov[c]['bug_lines_run']
- 101          if not runs or max(runs.values()) == 0:
- 102              return 'none'
- 103          if min(runs.values()) == 0:
- 104              return 'partial'
- 105          if cov[c]['branches_total'] and cov[c]['branches_taken'] == cov[c]['branches_total']:
- 106              return 'branch'
- 107          return 'line'
- 108  
- 109      controlled = any(e['verdict'] == 'BUG' for e in exe.values())
- 110  
- 111      def result(cv, ev, dep):
- 112          if ev == 'NOTRIGGER':
- 113              return 'not covered'
- 114          if cv == 'SKIPPED':
- 115              return 'checker not run'
- 116          if cv == 'CLEAN' and ev == 'BUG':
- 117              return 'checker missed a real bug'
- 118          if cv == 'BUG' and ev == 'BUG':
- 119              return 'both found it'
- 120          if cv == 'BUG' and ev == 'CLEAN':
- 121              return 'checker reports a bug that this input did not trigger'
- 122          if cv == 'CLEAN' and ev == 'CLEAN':
- 123              return 'certify_clean' if controlled else 'clean, but uncontrolled'
- 124          return 'error'
- 125  
- 126      cells = []
- 127      for key, ch in checkers.items():
- 128          for c in classes:
- 129              dep = depth(c)
- 130              cells.append({'input_class': c, 'checker': ch['label'], 'checker_verdict': ch['verdict'],
- 131                            'execution': exe[c]['verdict'], 'coverage_depth': dep,
- 132                            'result': result(ch['verdict'], exe[c]['verdict'], dep)})
- 133  
- 134      readout = {
- 135          'standard': 'certify-the-checker v0',
- 136          'claim_id': name,
- 137          'location': 'examples/%s/target.c lines %s' % (name, ' '.join(map(str, bug))),
- 138          'bug_lines_why': env.get('BUG_LINES_WHY', ''),
- 139          'build_config': 'host build: ' + open(os.path.join(out, 'versions.txt')).read().strip()
- 140                          if os.path.exists(os.path.join(out, 'versions.txt')) else 'host build',
- 141          'checkers': {ch['label']: ch['verdict'] for ch in checkers.values()},
- 142          'cells': cells,
- 143          'coverage': {c: ({'note': 'the run hit the bug; coverage not reported'} if exe[c]['verdict'] == 'BUG' else
- 144                           {'bug_lines_run': {str(k): v for k, v in cov[c]['bug_lines_run'].items()},
- 145                            'branches_taken': cov[c]['branches_taken'], 'branches_total': cov[c]['branches_total']})
- 146                       for c in classes},
- 147          'control_grade': 'controlled' if controlled else 'uncontrolled',
- 148          'note': "Illustration with the author's own code; not a vulnerability report.",
- 149      }
- 150      with open(os.path.join(out, 'readout.json'), 'w') as f:
- 151          json.dump(readout, f, indent=2)
- 152  
- 153      if not quiet:
- 154          print('== %s: %s' % (name, env['TITLE']))
- 155          print('   bug lines: %s  (%s)' % (' '.join(map(str, bug)), env.get('BUG_LINES_WHY', '')))
- 156          print('   %-30s %-8s %s' % ('static checker', 'verdict', 'lines it reported'))
- 157          for ch in checkers.values():
- 158              print('   %-30s %-8s %s' % (ch['label'], ch['verdict'], ' '.join(map(str, ch['lines'])) or '-'))
- 159          print('   running the code (ASan + UBSan), one run per input class, with measured coverage:')
- 160          for c in classes:
- 161              e, v = exe[c], cov[c]
- 162              if e['verdict'] == 'BUG':
- 163                  detail = 'the run hit the bug'
- 164              else:
- 165                  detail = ', '.join('line %d ran %dx' % (k, n) for k, n in sorted(v['bug_lines_run'].items()))
- 166                  detail += '; branches taken %d/%d' % (v['branches_taken'], v['branches_total'])
- 167              print('     %-12s %-9s depth=%-11s %s' % (
- 168                  c, e['verdict'] + (' @%d' % e['line'] if e.get('line') else ''), depth(c), detail))
- 169          print('   control grade: %s' % readout['control_grade'])
- 170          for ch in checkers.values():
- 171              for n in ch['lines']:
- 172                  if n not in bug:
- 173                      print('   note: %s also reported line %d; it is not a bug line, and no run confirmed a bug there.'
- 174                            % (ch['label'], n))
- 175          print('   readout written: %s' % os.path.join(out, 'readout.json'))
- 176      print('RESULT %s clang=%s gcc=%s cppcheck=%s exec:%s' % (
- 177          name, checkers['clang']['verdict'], checkers['gcc']['verdict'], checkers['cppcheck']['verdict'],
- 178          ''.join(' %s=%s' % (c, exe[c]['verdict']) for c in classes)))
- 179  
- 180  if __name__ == '__main__':
- 181      main()
+  44      for key, label in (('warn', 'gcc -Wall -Wextra -Wconversion -Wsign-conversion'),
+  45                         ('clang', 'clang --analyze'), ('gcc', 'gcc -Wall -Wextra -fanalyzer'),
+  46                         ('cppcheck', 'cppcheck --enable=all')):
+  47          p = os.path.join(out, 'static', key + '.txt')
+  48          if not os.path.exists(p):
+  49              checkers[key] = {'label': label, 'verdict': 'SKIPPED', 'lines': []}
+  50              continue
+  51          lines = reported_lines(open(p, errors='replace').read())
+  52          checkers[key] = {'label': label, 'lines': lines,
+  53                           'verdict': 'BUG' if any(l in bug for l in lines) else 'CLEAN'}
+  54  
+  55      # coverage per class
+  56      cov = {}
+  57      for c in classes:
+  58          info = {'bug_lines_run': {}, 'branches_total': 0, 'branches_taken': 0, 'untaken_branch_lines': []}
+  59          p = os.path.join(out, 'cov', c + '.json')
+  60          try:
+  61              doc = json.loads(open(p).read().strip().splitlines()[0])
+  62              for f in doc['files']:
+  63                  if not f['file'].endswith('target.c'):
+  64                      continue
+  65                  for ln in f['lines']:
+  66                      n = ln['line_number']
+  67                      if n in bug:
+  68                          info['bug_lines_run'][n] = ln['count']
+  69                      for b in ln.get('branches', []):
+  70                          info['branches_total'] += 1
+  71                          if b['count'] > 0:
+  72                              info['branches_taken'] += 1
+  73                          elif n not in info['untaken_branch_lines']:
+  74                              info['untaken_branch_lines'].append(n)
+  75          except (OSError, ValueError, IndexError, KeyError):
+  76              info['error'] = 'no coverage data'
+  77          for n in bug:
+  78              info['bug_lines_run'].setdefault(n, 0)
+  79          cov[c] = info
+  80  
+  81      # execution per class
+  82      exe = {}
+  83      for c in classes:
+  84          text = open(os.path.join(out, 'exec', c + '.txt'), errors='replace').read()
+  85          rc = int(open(os.path.join(out, 'exec', c + '.rc')).read().strip() or '0')
+  86          san = ('ERROR: AddressSanitizer' in text or 'runtime error:' in text) and 'target.c:' in text
+  87          any_bug_line_ran = any(v > 0 for v in cov[c]['bug_lines_run'].values())
+  88          if san:
+  89              m = re.search(r'target\.c:(\d+)', text)
+  90              exe[c] = {'verdict': 'BUG', 'line': int(m.group(1)) if m else None}
+  91          elif not any_bug_line_ran:
+  92              exe[c] = {'verdict': 'NOTRIGGER', 'line': None}
+  93          elif rc == 0:
+  94              exe[c] = {'verdict': 'CLEAN', 'line': None}
+  95          else:
+  96              exe[c] = {'verdict': 'ERROR', 'line': None, 'rc': rc}
+  97  
+  98      def depth(c):
+  99          if exe[c]['verdict'] == 'BUG':
+ 100              return 'input-class'
+ 101          runs = cov[c]['bug_lines_run']
+ 102          if not runs or max(runs.values()) == 0:
+ 103              return 'none'
+ 104          if min(runs.values()) == 0:
+ 105              return 'partial'
+ 106          if cov[c]['branches_total'] and cov[c]['branches_taken'] == cov[c]['branches_total']:
+ 107              return 'branch'
+ 108          return 'line'
+ 109  
+ 110      controlled = any(e['verdict'] == 'BUG' for e in exe.values())
+ 111  
+ 112      def result(cv, ev, dep):
+ 113          if ev == 'NOTRIGGER':
+ 114              return 'not covered'
+ 115          if cv == 'SKIPPED':
+ 116              return 'checker not run'
+ 117          if cv == 'CLEAN' and ev == 'BUG':
+ 118              return 'checker missed a real bug'
+ 119          if cv == 'BUG' and ev == 'BUG':
+ 120              return 'both found it'
+ 121          if cv == 'BUG' and ev == 'CLEAN':
+ 122              return 'checker reports a bug that this input did not trigger'
+ 123          if cv == 'CLEAN' and ev == 'CLEAN':
+ 124              return 'certify_clean' if controlled else 'clean, but uncontrolled'
+ 125          return 'error'
+ 126  
+ 127      cells = []
+ 128      for key, ch in checkers.items():
+ 129          for c in classes:
+ 130              dep = depth(c)
+ 131              cells.append({'input_class': c, 'checker': ch['label'], 'checker_verdict': ch['verdict'],
+ 132                            'execution': exe[c]['verdict'], 'coverage_depth': dep,
+ 133                            'result': result(ch['verdict'], exe[c]['verdict'], dep)})
+ 134  
+ 135      readout = {
+ 136          'standard': 'certify-the-checker v0',
+ 137          'claim_id': name,
+ 138          'location': 'examples/%s/target.c lines %s' % (name, ' '.join(map(str, bug))),
+ 139          'bug_lines_why': env.get('BUG_LINES_WHY', ''),
+ 140          'build_config': 'host build: ' + open(os.path.join(out, 'versions.txt')).read().strip()
+ 141                          if os.path.exists(os.path.join(out, 'versions.txt')) else 'host build',
+ 142          'checkers': {ch['label']: ch['verdict'] for ch in checkers.values()},
+ 143          'cells': cells,
+ 144          'coverage': {c: ({'note': 'the run hit the bug; coverage not reported'} if exe[c]['verdict'] == 'BUG' else
+ 145                           {'bug_lines_run': {str(k): v for k, v in cov[c]['bug_lines_run'].items()},
+ 146                            'branches_taken': cov[c]['branches_taken'], 'branches_total': cov[c]['branches_total']})
+ 147                       for c in classes},
+ 148          'control_grade': 'controlled' if controlled else 'uncontrolled',
+ 149          'note': "Illustration with the author's own code; not a vulnerability report.",
+ 150      }
+ 151      with open(os.path.join(out, 'readout.json'), 'w') as f:
+ 152          json.dump(readout, f, indent=2)
+ 153  
+ 154      if not quiet:
+ 155          print('== %s: %s' % (name, env['TITLE']))
+ 156          print('   bug lines: %s  (%s)' % (' '.join(map(str, bug)), env.get('BUG_LINES_WHY', '')))
+ 157          print('   %-30s %-8s %s' % ('static checker', 'verdict', 'lines it reported'))
+ 158          for ch in checkers.values():
+ 159              print('   %-30s %-8s %s' % (ch['label'], ch['verdict'], ' '.join(map(str, ch['lines'])) or '-'))
+ 160          print('   running the code (ASan + UBSan), one run per input class, with measured coverage:')
+ 161          for c in classes:
+ 162              e, v = exe[c], cov[c]
+ 163              if e['verdict'] == 'BUG':
+ 164                  detail = 'the run hit the bug'
+ 165              else:
+ 166                  detail = ', '.join('line %d ran %dx' % (k, n) for k, n in sorted(v['bug_lines_run'].items()))
+ 167                  detail += '; branches taken %d/%d' % (v['branches_taken'], v['branches_total'])
+ 168              print('     %-12s %-9s depth=%-11s %s' % (
+ 169                  c, e['verdict'] + (' @%d' % e['line'] if e.get('line') else ''), depth(c), detail))
+ 170          print('   control grade: %s' % readout['control_grade'])
+ 171          for ch in checkers.values():
+ 172              for n in ch['lines']:
+ 173                  if n not in bug:
+ 174                      print('   note: %s also reported line %d; it is not a bug line, and no run confirmed a bug there.'
+ 175                            % (ch['label'], n))
+ 176          print('   readout written: %s' % os.path.join(out, 'readout.json'))
+ 177      print('RESULT %s warn=%s clang=%s gcc=%s cppcheck=%s exec:%s' % (
+ 178          name, checkers['warn']['verdict'], checkers['clang']['verdict'], checkers['gcc']['verdict'], checkers['cppcheck']['verdict'],
+ 179          ''.join(' %s=%s' % (c, exe[c]['verdict']) for c in classes)))
+ 180  
+ 181  if __name__ == '__main__':
+ 182      main()
 ```
 
 ## FILE: tools/validate_readout.py
