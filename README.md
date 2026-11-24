@@ -1,6 +1,6 @@
 # Certify-the-Checker
 
-[![examples](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml/badge.svg)](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml)
+[![examples](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml/badge.svg)](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24493237.svg)](https://doi.org/10.5281/zenodo.24493237)
 
 **A "no issues found" result from a code checker is only true for what was actually checked.** This repo shows that with
 six small, runnable C examples. It also gives a short reporting format for writing down what a CLEAN result really covers.
@@ -162,6 +162,12 @@ of input and decide which lines matter; to add an example to this repo, see `CON
 - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
 - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
 - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+
+## How to cite
+
+Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
+https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
+from `CITATION.cff` ("Cite this repository").
 
 ## License
 

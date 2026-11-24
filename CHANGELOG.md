@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.3 (2026-11-24)
+- DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
+
 ## v0.3.2 (2026-11-24)
 - README: related work (how this relates to large benchmark suites such as NIST Juliet).
 - First release archived on Zenodo (citable with a DOI).

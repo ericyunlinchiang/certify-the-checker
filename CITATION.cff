@@ -4,7 +4,8 @@ title: "Certify-the-Checker: a standard for scoped certification of a checker's 
 authors:
   - family-names: Chiang
     given-names: Eric
-version: "0.3.2"
+version: "0.3.3"
 date-released: "2026-11-24"
+doi: 10.5281/zenodo.24493237
 license: CC-BY-4.0
 repository-code: "https://github.com/ericyunlinchiang/certify-the-checker"

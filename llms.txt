@@ -6,7 +6,7 @@
 > describes how to report a CLEAN result with its scope.
 
 Scope: six hand-written teaching examples, not a survey of real projects; results depend on tool versions (Ubuntu 24.04,
-gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). Not a vulnerability report.
+gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). Not a vulnerability report. Cite as doi:10.5281/zenodo.24493237.
 
 - [README.md](README.md): results table, how results are decided, quick start
 - [STANDARD-v0.md](STANDARD-v0.md): the reporting standard (plain-language version first)

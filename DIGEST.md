@@ -13,7 +13,7 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
    6  > describes how to report a CLEAN result with its scope.
    7  
    8  Scope: six hand-written teaching examples, not a survey of real projects; results depend on tool versions (Ubuntu 24.04,
-   9  gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). Not a vulnerability report.
+   9  gcc 13.3.0, clang 18.1.3, cppcheck 2.13.0). Not a vulnerability report. Cite as doi:10.5281/zenodo.24493237.
   10  
   11  - [README.md](README.md): results table, how results are decided, quick start
   12  - [STANDARD-v0.md](STANDARD-v0.md): the reporting standard (plain-language version first)
@@ -28,7 +28,7 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  # Certify-the-Checker
    2  
-   3  [![examples](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml/badge.svg)](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml)
+   3  [![examples](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml/badge.svg)](https://github.com/ericyunlinchiang/certify-the-checker/actions/workflows/examples.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24493237.svg)](https://doi.org/10.5281/zenodo.24493237)
    4  
    5  **A "no issues found" result from a code checker is only true for what was actually checked.** This repo shows that with
    6  six small, runnable C examples. It also gives a short reporting format for writing down what a CLEAN result really covers.
@@ -191,9 +191,15 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
  163  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
  164  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
  165  
- 166  ## License
+ 166  ## How to cite
  167  
- 168  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
+ 168  Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
+ 169  https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
+ 170  from `CITATION.cff` ("Cite this repository").
+ 171  
+ 172  ## License
+ 173  
+ 174  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
 ```
 
 ## FILE: CHANGELOG.md
@@ -201,31 +207,34 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  # Changelog
    2  
-   3  ## v0.3.2 (2026-11-24)
-   4  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
-   5  - First release archived on Zenodo (citable with a DOI).
-   6  
-   7  ## v0.3.1 (2026-11-24)
-   8  - README: FAQ answering common questions with the measured results.
-   9  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
-  10  
-  11  ## v0.3 (2026-11-24)
-  12  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
-  13  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
-  14  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
-  15  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
-  16  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
-  17  - The standard opens with a plain-language version; README says what the repo does and does not show.
-  18  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
-  19  
-  20  ## v0.2 (2026-11-24)
-  21  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
+   3  ## v0.3.3 (2026-11-24)
+   4  - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
+   5  
+   6  ## v0.3.2 (2026-11-24)
+   7  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
+   8  - First release archived on Zenodo (citable with a DOI).
+   9  
+  10  ## v0.3.1 (2026-11-24)
+  11  - README: FAQ answering common questions with the measured results.
+  12  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
+  13  
+  14  ## v0.3 (2026-11-24)
+  15  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
+  16  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
+  17  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
+  18  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
+  19  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
+  20  - The standard opens with a plain-language version; README says what the repo does and does not show.
+  21  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
   22  
-  23  ## v0.1 (2026-11-24)
-  24  - Plain-language README, runnable example folder, readout template.
+  23  ## v0.2 (2026-11-24)
+  24  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
   25  
-  26  ## v0 (2026-11-24)
-  27  - First release: the standard and one example.
+  26  ## v0.1 (2026-11-24)
+  27  - Plain-language README, runnable example folder, readout template.
+  28  
+  29  ## v0 (2026-11-24)
+  30  - First release: the standard and one example.
 ```
 
 ## FILE: STANDARD-v0.md
