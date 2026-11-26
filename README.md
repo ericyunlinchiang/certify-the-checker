@@ -155,6 +155,37 @@ same results**. It does not mean a checker is good. Other tool versions can give
 
 Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
 
+## Measure an AI reviewer on your own repository (new in v0.4, experimental)
+
+"Did the AI reviewer help?" is hard to answer without a test. `tools/reviewer-exam/` builds one from your own git history:
+every small bug-fix commit becomes two questions about the **same lines**: the code before the fix (expected: DEFECT) and
+after the fix (expected: SAFE for those lines). The answer key stays in a separate file that the reviewer never sees.
+
+```
+tools/reviewer-exam/build_exam.py  path/to/your-repo  exam        # questions.jsonl + answer-key.jsonl
+tools/reviewer-exam/run_reviewer.py exam/questions.jsonl exam/answers.jsonl --cmd "your-reviewer-command"
+tools/reviewer-exam/score.py exam/answer-key.jsonl exam/answers.jsonl
+```
+
+Your reviewer gets one prompt on stdin and prints DEFECT or SAFE. Three built-in baselines need no AI and show what a
+score means. On the public [openbmc/dbus-sensors](https://github.com/openbmc/dbus-sensors) repository (commit 5763740,
+40 fix commits, 80 questions; 64 logic-class, 16 memory-class):
+
+| reviewer | recall (bugs found) | precision | false alarm (DEFECT on fixed code) |
+|---|---|---|---|
+| `--baseline always-defect` | 1.00 | 0.50 | 1.00 |
+| `--baseline always-safe` | 0.00 | - | 0.00 |
+| `--baseline random` | 0.42 | 0.45 | 0.53 |
+
+So **recall alone means nothing**: a reviewer that flags everything gets 1.00. Always read recall together with false
+alarm, per bug class. A useful reviewer must beat these baselines on both.
+
+Limits, stated plainly:
+- the questions come from commit subjects that look like fixes; some "fixes" are not bugs (label noise);
+- "SAFE after the fix" covers only the changed lines, not the whole file;
+- the class (memory or logic) is guessed from the commit subject;
+- results for real AI reviewers are not published here yet; they will be added only with their raw outputs.
+
 ## Use it on your own code (4 steps)
 
 1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
@@ -187,6 +218,7 @@ of input and decide which lines matter; to add an example to this repo, see `CON
 - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
 - `examples/expected-results.txt`: the table above, machine-readable
 - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
+- `tools/reviewer-exam/`: `build_exam.py`, `run_reviewer.py`, `score.py` (measure an AI reviewer on your git history)
 - `schema/readout.schema.json`, `readout-template.json`
 - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
 - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version

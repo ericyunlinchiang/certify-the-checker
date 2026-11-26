@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4 (2026-11-26)
+- `tools/reviewer-exam/`: build a per-bug-site exam for an AI code reviewer from a repository's own fix commits, ask any
+  reviewer command, and score recall, precision, false alarm and no-answer per bug class.
+- Three baselines (always DEFECT, always SAFE, random) and their scores on openbmc/dbus-sensors, showing why recall alone
+  can be gamed.
+
 ## v0.3.4 (2026-11-25)
 - New column: compiler warnings (`gcc -Wall -Wextra -Wconversion -Wsign-conversion`); silent on all six examples, also
   with the explicit cast in 01 removed. New "any static check" column. Results of the other columns unchanged.

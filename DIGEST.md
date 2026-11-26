@@ -183,54 +183,86 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
  155  
  156  Each run writes a `readout.json` that follows `schema/readout.schema.json` (checked in CI by `tools/validate_readout.py`).
  157  
- 158  ## Use it on your own code (4 steps)
+ 158  ## Measure an AI reviewer on your own repository (new in v0.4, experimental)
  159  
- 160  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
- 161  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
- 162     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
- 163  3. **Show your test can fail**: use an input or a planted bug that must be reported.
- 164  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
- 165  
- 166  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
- 167  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
- 168  
- 169  ## Words used
- 170  
- 171  | Word | Meaning |
- 172  |---|---|
- 173  | CLEAN / BUG | "no issue found" / "issue found" |
- 174  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
- 175  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
- 176  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
- 177  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
- 178  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
- 179  | coverage depth | how thoroughly the risky code was exercised (see above) |
- 180  | controlled | the test was shown able to fail |
- 181  
- 182  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
- 183  
- 184  ## Files
- 185  
- 186  - `STANDARD-v0.md`: the standard
- 187  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
- 188  - `examples/expected-results.txt`: the table above, machine-readable
- 189  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
- 190  - `schema/readout.schema.json`, `readout-template.json`
- 191  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
- 192  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
- 193  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
- 194  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
- 195  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+ 160  "Did the AI reviewer help?" is hard to answer without a test. `tools/reviewer-exam/` builds one from your own git history:
+ 161  every small bug-fix commit becomes two questions about the **same lines**: the code before the fix (expected: DEFECT) and
+ 162  after the fix (expected: SAFE for those lines). The answer key stays in a separate file that the reviewer never sees.
+ 163  
+ 164  ```
+ 165  tools/reviewer-exam/build_exam.py  path/to/your-repo  exam        # questions.jsonl + answer-key.jsonl
+ 166  tools/reviewer-exam/run_reviewer.py exam/questions.jsonl exam/answers.jsonl --cmd "your-reviewer-command"
+ 167  tools/reviewer-exam/score.py exam/answer-key.jsonl exam/answers.jsonl
+ 168  ```
+ 169  
+ 170  Your reviewer gets one prompt on stdin and prints DEFECT or SAFE. Three built-in baselines need no AI and show what a
+ 171  score means. On the public [openbmc/dbus-sensors](https://github.com/openbmc/dbus-sensors) repository (commit 5763740,
+ 172  40 fix commits, 80 questions; 64 logic-class, 16 memory-class):
+ 173  
+ 174  | reviewer | recall (bugs found) | precision | false alarm (DEFECT on fixed code) |
+ 175  |---|---|---|---|
+ 176  | `--baseline always-defect` | 1.00 | 0.50 | 1.00 |
+ 177  | `--baseline always-safe` | 0.00 | - | 0.00 |
+ 178  | `--baseline random` | 0.42 | 0.45 | 0.53 |
+ 179  
+ 180  So **recall alone means nothing**: a reviewer that flags everything gets 1.00. Always read recall together with false
+ 181  alarm, per bug class. A useful reviewer must beat these baselines on both.
+ 182  
+ 183  Limits, stated plainly:
+ 184  - the questions come from commit subjects that look like fixes; some "fixes" are not bugs (label noise);
+ 185  - "SAFE after the fix" covers only the changed lines, not the whole file;
+ 186  - the class (memory or logic) is guessed from the commit subject;
+ 187  - results for real AI reviewers are not published here yet; they will be added only with their raw outputs.
+ 188  
+ 189  ## Use it on your own code (4 steps)
+ 190  
+ 191  1. **Pick a claim.** One place where your checker says CLEAN, or reports a finding.
+ 192  2. **Run it for real**, under a sanitizer or with tests, once per kind of input you care about (normal, empty, very
+ 193     large, negative, malformed...). Measure whether the risky line and branches actually ran (gcov or llvm-cov).
+ 194  3. **Show your test can fail**: use an input or a planted bug that must be reported.
+ 195  4. **Write it down** in the `readout-template.json` format, one cell per kind of input, and report the whole table.
  196  
- 197  ## How to cite
- 198  
- 199  Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
- 200  https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
- 201  from `CITATION.cff` ("Cite this repository").
- 202  
- 203  ## License
- 204  
- 205  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
+ 197  The scripts here are built for the curated examples, where the bug lines are known. On your own code you supply the kinds
+ 198  of input and decide which lines matter; to add an example to this repo, see `CONTRIBUTING.md`.
+ 199  
+ 200  ## Words used
+ 201  
+ 202  | Word | Meaning |
+ 203  |---|---|
+ 204  | CLEAN / BUG | "no issue found" / "issue found" |
+ 205  | checker (S) | the tool being evaluated: static analyzer, linter, AI reviewer |
+ 206  | running the code (X) | executing it and watching for errors, e.g. with AddressSanitizer |
+ 207  | certify-clean | checker says CLEAN and running the code found nothing, for the stated settings and inputs |
+ 208  | does not transfer | a CLEAN that holds for some settings or inputs but fails for others |
+ 209  | white-cell | a false negative: checker says CLEAN, running the code finds a real bug |
+ 210  | coverage depth | how thoroughly the risky code was exercised (see above) |
+ 211  | controlled | the test was shown able to fail |
+ 212  
+ 213  `STANDARD-v0.md` starts with a plain-language version, then the precise one.
+ 214  
+ 215  ## Files
+ 216  
+ 217  - `STANDARD-v0.md`: the standard
+ 218  - `examples/NN-name/`: `target.c` (the bug), `harness.c` (runs one kind of input), `example.env` (bug lines, inputs)
+ 219  - `examples/expected-results.txt`: the table above, machine-readable
+ 220  - `tools/run_all.sh`, `tools/run_example.sh`, `tools/readout.py`, `tools/validate_readout.py`, `tools/make_digest.sh`
+ 221  - `tools/reviewer-exam/`: `build_exam.py`, `run_reviewer.py`, `score.py` (measure an AI reviewer on your git history)
+ 222  - `schema/readout.schema.json`, `readout-template.json`
+ 223  - `Dockerfile`, `.github/workflows/examples.yml` (CI), `.github/ISSUE_TEMPLATE/`
+ 224  - `docs/`: the project web page (GitHub Pages); `CHANGELOG.md`: what changed in each version
+ 225  - `DIGEST.md`: the whole repo in one file, for pasting into an AI assistant that cannot open links; `llms.txt`: short index
+ 226  - `CONTRIBUTING.md`, `CITATION.cff`, `PROVENANCE.md`, `AUTHORS`, `LICENSES.md`, `LICENSE-Apache-2.0`, `LICENSE-CC-BY-4.0`
+ 227  - `SHA256SUMS`: check with `sha256sum -c SHA256SUMS`
+ 228  
+ 229  ## How to cite
+ 230  
+ 231  Eric Chiang, *Certify-the-Checker: a standard for scoped certification of a checker's CLEAN verdict*, Zenodo,
+ 232  https://doi.org/10.5281/zenodo.24493237 (this DOI always points to the latest version). GitHub can also export the citation
+ 233  from `CITATION.cff` ("Cite this repository").
+ 234  
+ 235  ## License
+ 236  
+ 237  Text: CC BY 4.0. Code: Apache-2.0. Author: Eric Chiang. Issues, results and new examples are welcome.
 ```
 
 ## FILE: CHANGELOG.md
@@ -238,40 +270,46 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
 ```
    1  # Changelog
    2  
-   3  ## v0.3.4 (2026-11-25)
-   4  - New column: compiler warnings (`gcc -Wall -Wextra -Wconversion -Wsign-conversion`); silent on all six examples, also
-   5    with the explicit cast in 01 removed. New "any static check" column. Results of the other columns unchanged.
-   6  - README: says up front that this is not a new discovery; new section on combining checks and the "white zone", with
-   7    three 2026 measurements (feedback from r/cprogramming).
+   3  ## v0.4 (2026-11-26)
+   4  - `tools/reviewer-exam/`: build a per-bug-site exam for an AI code reviewer from a repository's own fix commits, ask any
+   5    reviewer command, and score recall, precision, false alarm and no-answer per bug class.
+   6  - Three baselines (always DEFECT, always SAFE, random) and their scores on openbmc/dbus-sensors, showing why recall alone
+   7    can be gamed.
    8  
-   9  ## v0.3.3 (2026-11-24)
-  10  - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
-  11  
-  12  ## v0.3.2 (2026-11-24)
-  13  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
-  14  - First release archived on Zenodo (citable with a DOI).
-  15  
-  16  ## v0.3.1 (2026-11-24)
-  17  - README: FAQ answering common questions with the measured results.
-  18  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
-  19  
-  20  ## v0.3 (2026-11-24)
-  21  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
-  22  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
-  23  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
-  24  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
-  25  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
-  26  - The standard opens with a plain-language version; README says what the repo does and does not show.
-  27  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
-  28  
-  29  ## v0.2 (2026-11-24)
-  30  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
-  31  
-  32  ## v0.1 (2026-11-24)
-  33  - Plain-language README, runnable example folder, readout template.
+   9  ## v0.3.4 (2026-11-25)
+  10  - New column: compiler warnings (`gcc -Wall -Wextra -Wconversion -Wsign-conversion`); silent on all six examples, also
+  11    with the explicit cast in 01 removed. New "any static check" column. Results of the other columns unchanged.
+  12  - README: says up front that this is not a new discovery; new section on combining checks and the "white zone", with
+  13    three 2026 measurements (feedback from r/cprogramming).
+  14  
+  15  ## v0.3.3 (2026-11-24)
+  16  - DOI badge, "How to cite" section and DOI in CITATION.cff (Zenodo, all versions: 10.5281/zenodo.24493237).
+  17  
+  18  ## v0.3.2 (2026-11-24)
+  19  - README: related work (how this relates to large benchmark suites such as NIST Juliet).
+  20  - First release archived on Zenodo (citable with a DOI).
+  21  
+  22  ## v0.3.1 (2026-11-24)
+  23  - README: FAQ answering common questions with the measured results.
+  24  - Project web page in `docs/` (GitHub Pages), CHANGELOG.
+  25  
+  26  ## v0.3 (2026-11-24)
+  27  - Two more examples: 05 (a bug the tests never reach; two checkers find it) and 06 (divide by zero, not a memory bug).
+  28  - Each example lists its bug lines (root cause and where it goes wrong); a checker finds the bug if it reports any of them.
+  29  - Coverage depth measured with gcov for each kind of input (none / partial / line / branch / input-class).
+  30  - Every run writes a readout.json that follows `schema/readout.schema.json`; CI validates it.
+  31  - Stricter checker flags (`gcc -Wall -Wextra -fanalyzer`, `cppcheck --enable=all`); results for 01-04 unchanged.
+  32  - The standard opens with a plain-language version; README says what the repo does and does not show.
+  33  - Dockerfile; `llms.txt` and `DIGEST.md` (whole repo in one file); CI publishes raw outputs and builds the Docker image.
   34  
-  35  ## v0 (2026-11-24)
-  36  - First release: the standard and one example.
+  35  ## v0.2 (2026-11-24)
+  36  - Four examples with a results table, `tools/run_all.sh` and `tools/run_example.sh`, CONTRIBUTING, issue templates, CI.
+  37  
+  38  ## v0.1 (2026-11-24)
+  39  - Plain-language README, runnable example folder, readout template.
+  40  
+  41  ## v0 (2026-11-24)
+  42  - First release: the standard and one example.
 ```
 
 ## FILE: STANDARD-v0.md
@@ -1014,6 +1052,215 @@ Line numbers are shown for every file. The bug lines in examples/*/example.env r
    6  __attribute__((constructor)) static void install(void) {
    7    signal(SIGSEGV, on_crash); signal(SIGABRT, on_crash); signal(SIGBUS, on_crash); signal(SIGFPE, on_crash);
    8  }
+```
+
+## FILE: tools/reviewer-exam/build_exam.py
+
+```
+   1  #!/usr/bin/env python3
+   2  """Build a per-bug-site exam for an AI code reviewer from a repository's own git history.
+   3  
+   4  Each small bug-fix commit gives two questions about the SAME lines:
+   5    - the code before the fix  -> expected answer DEFECT
+   6    - the code after the fix   -> expected answer SAFE   (only for these lines; the file may have other bugs)
+   7  The answer key is written to a separate file. Give the reviewer only questions.jsonl.
+   8  
+   9  Usage:
+  10    build_exam.py REPO OUTDIR [--max-lines 30] [--context 30] [--limit 40] [--seed 1]
+  11  """
+  12  import argparse, hashlib, json, os, random, re, subprocess, sys
+  13  
+  14  FIX = re.compile(r'\b(fix|fixes|fixed|bug|crash|segfault|leak|overflow|underflow|null|nullptr|use.after|out of bounds|'
+  15                   r'oob|race|deadlock|uninitiali[sz]ed|off.by.one|dangling|double free|hang|incorrect|wrong)\b', re.I)
+  16  COSMETIC = re.compile(r'\b(typo|spelling|build|compil\w*|lint|clang|tidy|format\w*|warning|doc|docs|comment|readme|'
+  17                        r'style|ci|meson|cmake|tests?|unit|whitespace|include|header|rename|refactor|clean ?up|revert|'
+  18                        r'log|logging|message|json|schema|validator|unused|32/64)\b', re.I)
+  19  MEMORY = re.compile(r'\b(overflow|underflow|null|nullptr|leak|use.after|uaf|out of bounds|oob|bounds|uninitiali[sz]ed|'
+  20                      r'dangling|double free|segfault|crash|abort|memory|buffer|lifetime|asan|ubsan)\b', re.I)
+  21  SRC = ('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp')
+  22  
+  23  def git(repo, *args):
+  24      return subprocess.run(['git', '-C', repo, *args], check=True, capture_output=True, text=True,
+  25                            errors='replace').stdout
+  26  
+  27  def candidates(repo, max_lines):
+  28      log = git(repo, 'log', '--no-merges', '--format=%H%x09%P%x09%s')
+  29      for line in log.splitlines():
+  30          h, parents, subj = (line.split('\t', 2) + ['', ''])[:3]
+  31          if ' ' in parents.strip() or not parents or not FIX.search(subj) or COSMETIC.search(subj):
+  32              continue
+  33          stat = [l.split('\t') for l in git(repo, 'show', '--numstat', '--format=', h).splitlines() if l]
+  34          src = [s for s in stat if s[2].endswith(SRC) and 'test' not in s[2].lower()]
+  35          if len(src) != 1 or src[0][0] == '-' or int(src[0][0]) + int(src[0][1]) > max_lines:
+  36              continue
+  37          yield h, parents.strip(), src[0][2], subj
+  38  
+  39  def first_hunk(repo, h, path):
+  40      diff = git(repo, 'show', '-U0', '--format=', h, '--', path)
+  41      m = re.search(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', diff, re.M)
+  42      if not m:
+  43          return None
+  44      o, oc, n, nc = int(m[1]), int(m[2] or 1), int(m[3]), int(m[4] or 1)
+  45      # A pure insertion has 0 old lines: point the old side at the line it was inserted after.
+  46      return (o, max(oc, 1)), (n, max(nc, 1))
+  47  
+  48  def snippet(text, start, count, ctx):
+  49      lines = text.splitlines()
+  50      lo, hi = max(1, start - ctx), min(len(lines), start + count - 1 + ctx)
+  51      body = '\n'.join(f'{i:5d}  {lines[i - 1]}' for i in range(lo, hi + 1))
+  52      return body, start, min(len(lines), start + count - 1)
+  53  
+  54  def qid(*parts):
+  55      return hashlib.sha256('|'.join(parts).encode()).hexdigest()[:10]
+  56  
+  57  def main():
+  58      ap = argparse.ArgumentParser()
+  59      ap.add_argument('repo'); ap.add_argument('outdir')
+  60      ap.add_argument('--max-lines', type=int, default=30); ap.add_argument('--context', type=int, default=30)
+  61      ap.add_argument('--limit', type=int, default=40); ap.add_argument('--seed', type=int, default=1)
+  62      a = ap.parse_args()
+  63      os.makedirs(a.outdir, exist_ok=True)
+  64      qs, key = [], []
+  65      for h, parent, path, subj in candidates(a.repo, a.max_lines):
+  66          hk = first_hunk(a.repo, h, path)
+  67          if not hk:
+  68              continue
+  69          cls = 'memory' if MEMORY.search(subj) else 'logic'
+  70          pair = []
+  71          for side, rev, (start, count), answer in (('before', parent, hk[0], 'DEFECT'), ('after', h, hk[1], 'SAFE')):
+  72              try:
+  73                  text = git(a.repo, 'show', f'{rev}:{path}')
+  74              except subprocess.CalledProcessError:
+  75                  pair = []
+  76                  break  # file missing on one side (added or deleted): skip the whole pair
+  77              body, s, e = snippet(text, start, count, a.context)
+  78              i = qid(os.path.basename(os.path.abspath(a.repo)), h, side)
+  79              pair.append(({'id': i, 'file': path, 'lines': [s, e], 'code': body},
+  80                           {'id': i, 'answer': answer, 'class': cls, 'commit': h, 'side': side, 'subject': subj}))
+  81          for q, k in pair:
+  82              qs.append(q); key.append(k)
+  83          if len(key) >= 2 * a.limit:
+  84              break
+  85      random.Random(a.seed).shuffle(qs)
+  86      with open(os.path.join(a.outdir, 'questions.jsonl'), 'w') as f:
+  87          for q in qs:
+  88              f.write(json.dumps(q) + '\n')
+  89      with open(os.path.join(a.outdir, 'answer-key.jsonl'), 'w') as f:
+  90          for k in key:
+  91              f.write(json.dumps(k) + '\n')
+  92      print(f'{len(qs)} questions from {len(key) // 2} fix commits -> {a.outdir} (keep answer-key.jsonl away from the reviewer)')
+  93  
+  94  if __name__ == '__main__':
+  95      main()
+```
+
+## FILE: tools/reviewer-exam/run_reviewer.py
+
+```
+   1  #!/usr/bin/env python3
+   2  """Ask a reviewer every question and save its answers.
+   3  
+   4  Built-in baselines (no AI needed) show what a score means:
+   5    always-defect   says DEFECT to everything (a "flag everything" reviewer)
+   6    always-safe     says SAFE to everything
+   7    random          coin flip (seeded)
+   8  Your own reviewer: --cmd "your command". It gets one prompt on stdin and must print DEFECT or SAFE
+   9  (the first of the two words found in its output counts; anything else is recorded as NO-ANSWER).
+  10  
+  11  Usage:
+  12    run_reviewer.py questions.jsonl answers.jsonl --baseline always-defect
+  13    run_reviewer.py questions.jsonl answers.jsonl --cmd "my-reviewer --model x"
+  14  """
+  15  import argparse, json, random, re, shlex, subprocess, sys
+  16  
+  17  PROMPT = """You are reviewing C/C++ code. Look ONLY at lines {s} to {e} of {file} (line numbers are on the left;
+  18  the other lines are context). Is there a defect in those lines: a bug that makes the program behave wrongly for some
+  19  reachable input or state (memory error, wrong result, wrong state, crash)? Style issues are not defects.
+  20  Answer with one word on the first line: DEFECT or SAFE.
+  21  
+  22  {code}
+  23  """
+  24  WORD = re.compile(r'\b(DEFECT|SAFE)\b')
+  25  
+  26  def main():
+  27      ap = argparse.ArgumentParser()
+  28      ap.add_argument('questions'); ap.add_argument('answers')
+  29      g = ap.add_mutually_exclusive_group(required=True)
+  30      g.add_argument('--baseline', choices=['always-defect', 'always-safe', 'random'])
+  31      g.add_argument('--cmd')
+  32      ap.add_argument('--seed', type=int, default=1); ap.add_argument('--timeout', type=int, default=300)
+  33      a = ap.parse_args()
+  34      rnd = random.Random(a.seed)
+  35      with open(a.questions) as qf, open(a.answers, 'w') as out:
+  36          for line in qf:
+  37              q = json.loads(line)
+  38              if a.baseline == 'always-defect':
+  39                  ans = 'DEFECT'
+  40              elif a.baseline == 'always-safe':
+  41                  ans = 'SAFE'
+  42              elif a.baseline == 'random':
+  43                  ans = rnd.choice(['DEFECT', 'SAFE'])
+  44              else:
+  45                  prompt = PROMPT.format(s=q['lines'][0], e=q['lines'][1], file=q['file'], code=q['code'])
+  46                  try:
+  47                      r = subprocess.run(shlex.split(a.cmd), input=prompt, capture_output=True, text=True,
+  48                                         timeout=a.timeout)
+  49                      m = WORD.search(r.stdout.upper())
+  50                      ans = m.group(1) if m else 'NO-ANSWER'
+  51                  except (subprocess.TimeoutExpired, OSError) as e:
+  52                      print(f"{q['id']}: reviewer failed: {e}", file=sys.stderr)
+  53                      ans = 'NO-ANSWER'
+  54              out.write(json.dumps({'id': q['id'], 'answer': ans}) + '\n')
+  55  
+  56  if __name__ == '__main__':
+  57      main()
+```
+
+## FILE: tools/reviewer-exam/score.py
+
+```
+   1  #!/usr/bin/env python3
+   2  """Score a reviewer's answers against the answer key.
+   3  
+   4  Prints, overall and per bug class:
+   5    recall      = bugs found / bugs present          (high is good)
+   6    precision   = real bugs / DEFECT answers         (low means many false alarms)
+   7    false-alarm = DEFECT on fixed code / fixed code  (low is good)
+   8    no-answer   = questions without a usable answer (counted as wrong)
+   9  A reviewer that says DEFECT to everything gets recall 1.00 but false-alarm 1.00: look at both.
+  10  
+  11  Usage: score.py answer-key.jsonl answers.jsonl
+  12  """
+  13  import collections, json, sys
+  14  
+  15  def load(path):
+  16      with open(path) as f:
+  17          return {d['id']: d for d in map(json.loads, f)}
+  18  
+  19  def row(name, c):
+  20      tp, fn, fp, tn, na = c['TP'], c['FN'], c['FP'], c['TN'], c['NA']
+  21      f = lambda x, y: f'{x / y:.2f}' if y else '  - '
+  22      return (f"{name:8s} {tp + fn + fp + tn:5d}  recall {f(tp, tp + fn)}  precision {f(tp, tp + fp)}  "
+  23              f"false-alarm {f(fp, fp + tn)}  no-answer {na}")
+  24  
+  25  def main(keyf, ansf):
+  26      key, ans = load(keyf), load(ansf)
+  27      by = collections.defaultdict(collections.Counter)
+  28      for i, k in key.items():
+  29          a = ans.get(i, {}).get('answer', 'NO-ANSWER')
+  30          if a not in ('DEFECT', 'SAFE'):
+  31              for c in ('all', k['class']):
+  32                  by[c]['NA'] += 1
+  33              a = 'SAFE' if k['answer'] == 'DEFECT' else 'DEFECT'  # no answer counts as wrong
+  34          cell = {('DEFECT', 'DEFECT'): 'TP', ('DEFECT', 'SAFE'): 'FN',
+  35                  ('SAFE', 'DEFECT'): 'FP', ('SAFE', 'SAFE'): 'TN'}[(k['answer'], a)]
+  36          for c in ('all', k['class']):
+  37              by[c][cell] += 1
+  38      for c in ['all'] + sorted(x for x in by if x != 'all'):
+  39          print(row(c, by[c]))
+  40  
+  41  if __name__ == '__main__':
+  42      main(*sys.argv[1:3])
 ```
 
 ## FILE: schema/readout.schema.json
